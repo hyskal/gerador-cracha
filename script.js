@@ -70,15 +70,15 @@ document.getElementById('uploadImage').addEventListener('change', function(event
     }
 });
 
-// Função para processar a imagem do usuário
+// Processar imagem para qualidade otimizada - VERSÃO CORRIGIDA
 function processUserImage() {
     // Criar canvas temporário para processamento
     const tempCanvas = document.createElement('canvas');
     const tempCtx = tempCanvas.getContext('2d');
     
-    // Definir dimensões baseadas na proporção ideal para crachá
+    // Manter proporções originais mas em alta resolução
     const aspectRatio = userImage.width / userImage.height;
-    const targetWidth = 1000; // Alta resolução para processamento
+    const targetWidth = 800; // Resolução adequada
     const targetHeight = Math.round(targetWidth / aspectRatio);
     
     tempCanvas.width = targetWidth;
@@ -91,7 +91,7 @@ function processUserImage() {
     // Desenhar imagem redimensionada
     tempCtx.drawImage(userImage, 0, 0, targetWidth, targetHeight);
     
-    // Aplicar filtro de nitidez se necessário
+    // Aplicar filtro de nitidez sutil
     const imageData = tempCtx.getImageData(0, 0, targetWidth, targetHeight);
     const sharpened = applySharpenFilter(imageData);
     tempCtx.putImageData(sharpened, 0, 0);
@@ -105,12 +105,16 @@ function processUserImage() {
         // Resetar controles
         resetImageControls();
         
-        // Mostrar controles de imagem
-        document.getElementById('imageControls').style.display = 'block';
+        // Mostrar controles de imagem - GARANTIR que aparecem
+        const imageControls = document.getElementById('imageControls');
+        if (imageControls) {
+            imageControls.style.display = 'block';
+            console.log('Controles de imagem ativados'); // Debug
+        }
         
         drawBadge();
     };
-    processedImage.src = tempCanvas.toDataURL('image/png', 1.0);
+    processedImage.src = tempCanvas.toDataURL('image/png', 0.95);
 }
 
 // Função de filtro de nitidez
@@ -233,7 +237,7 @@ function drawBadge() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.restore();
 
-    // Desenhar foto do usuário (atrás do modelo)
+    // PRIMEIRO: Desenhar foto do usuário (atrás do modelo PNG)
     if (userImage) {
         ctx.save();
         
@@ -246,30 +250,35 @@ function drawBadge() {
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
         
-        // Calcular dimensões e posição
-        const scaledWidth = userImage.width * imageZoom * 0.7;
-        const scaledHeight = userImage.height * imageZoom * 0.7;
+        // Calcular dimensões com zoom aplicado
+        const baseScale = 0.3; // Escala base para a imagem
+        const scaledWidth = (userImage.width * baseScale * imageZoom);
+        const scaledHeight = (userImage.height * baseScale * imageZoom);
         
+        // Centro do canvas (300x400)
         const centerX = 150;
         const centerY = 200;
         
-        const drawX = centerX - scaledWidth / 2 + (imagePosition.x * 2);
-        const drawY = centerY - scaledHeight / 2 + (imagePosition.y * 2);
+        // Aplicar posicionamento X/Y (multiplicador para controle mais preciso)
+        const drawX = centerX - scaledWidth / 2 + (imagePosition.x * 1.5);
+        const drawY = centerY - scaledHeight / 2 + (imagePosition.y * 1.5);
         
+        // Desenhar imagem do usuário
         ctx.drawImage(userImage, drawX, drawY, scaledWidth, scaledHeight);
         ctx.restore();
     }
 
-    // Desenhar modelo PNG com transparência
+    // SEGUNDO: Desenhar modelo PNG com transparência (por cima da foto)
     if (modelImage) {
         ctx.save();
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
+        // O modelo PNG deve ter áreas transparentes onde a foto deve aparecer
         ctx.drawImage(modelImage, 0, 0, 300, 400);
         ctx.restore();
     }
 
-    // Desenhar textos (se necessário)
+    // TERCEIRO: Desenhar textos (se necessário, por cima de tudo)
     drawTexts();
 }
 
