@@ -37,10 +37,12 @@ ctx.textRenderingOptimization = 'optimizeQuality';
 // Lista de modelos pré-definidos. Preencha os links dos modelos aqui.
 // Esta seção será substituída por uma lista com 4 opções de modelos
 const modelLinks = {
-    'Modelo 1': 'LINK_PARA_MODELO_1.png',
-    'Modelo 2': 'LINK_PARA_MODELO_2.png',
-    'Modelo 3': 'LINK_PARA_MODELO_3.png',
-    'Modelo 4': 'LINK_PARA_MODELO_4.png'
+    // Atenção: Usei o mesmo link fornecido para todos os modelos.
+    // Substitua-o pelos links corretos dos seus modelos.
+    'Modelo 1': 'https://i.ibb.co/PZQLwy4/cgara-transpp.png',
+    'Modelo 2': 'https://i.ibb.co/PZQLwy4/cgara-transpp.png',
+    'Modelo 3': 'https://i.ibb.co/PZQLwy4/cgara-transpp.png',
+    'Modelo 4': 'https://i.ibb.co/PZQLwy4/cgara-transpp.png'
 };
 
 // Função para carregar um modelo a partir de uma URL
@@ -135,25 +137,6 @@ document.getElementById('uploadImage').addEventListener('change', function(event
         reader.readAsDataURL(file);
     }
 });
-
-// Remover a lógica de carregamento via URL, pois será substituída pelo select
-// document.getElementById('loadModelUrl').addEventListener('click', function() { ... });
-
-
-// Controle do select de função/curso
-document.getElementById('roleSelect').addEventListener('change', function() {
-    const customInput = document.getElementById('roleCustom');
-    if (this.value === 'custom') {
-        customInput.style.display = 'block';
-        customInput.focus();
-    } else {
-        customInput.style.display = 'none';
-        customInput.value = '';
-    }
-    drawBadge();
-});
-
-document.getElementById('roleCustom').addEventListener('input', drawBadge);
 
 // Função para processar a imagem do usuário (aplica nitidez)
 function processUserImage() {
@@ -348,27 +331,34 @@ function updateSliderValues() {
 function drawBadge() {
     console.log('Iniciando o desenho do crachá...');
     ctx.clearRect(0, 0, canvas.width / SCALE_FACTOR, canvas.height / SCALE_FACTOR);
-    
+
     // Desenha a foto do usuário se existir e a área transparente tiver sido detectada
     if (userImage && photoArea) {
         console.log('Desenhando imagem do usuário. Posição:', imagePosition, 'Zoom:', imageZoom);
         ctx.filter = `brightness(${100 + parseInt(document.getElementById('brightness').value)}%) contrast(${100 + parseInt(document.getElementById('contrast').value)}%)`;
         
-        const aspectRatio = userImage.width / userImage.height;
-        let imageDrawWidth = photoArea.width;
-        let imageDrawHeight = photoArea.width / aspectRatio;
+        // --- INÍCIO: LÓGICA DE DESENHO MELHORADA ---
+        const userAspect = userImage.width / userImage.height;
+        const photoAspect = photoArea.width / photoArea.height;
+        let imageDrawWidth, imageDrawHeight;
 
-        if (imageDrawHeight < photoArea.height) {
-            imageDrawHeight = photoArea.height;
-            imageDrawWidth = photoArea.height * aspectRatio;
+        if (userAspect > photoAspect) {
+            // A imagem do usuário é mais larga que a área da foto.
+            // A altura é ajustada para preencher a área, e a largura é escalada para manter a proporção.
+            imageDrawHeight = photoArea.height * imageZoom;
+            imageDrawWidth = imageDrawHeight * userAspect;
+        } else {
+            // A imagem do usuário é mais alta ou tem a mesma proporção.
+            // A largura é ajustada para preencher a área, e a altura é escalada para manter a proporção.
+            imageDrawWidth = photoArea.width * imageZoom;
+            imageDrawHeight = imageDrawWidth / userAspect;
         }
 
-        imageDrawWidth *= imageZoom;
-        imageDrawHeight *= imageZoom;
-
-        const imageDrawX = photoArea.x + imagePosition.x;
-        const imageDrawY = photoArea.y + imagePosition.y;
-
+        // Centraliza a imagem antes de aplicar o posicionamento manual do usuário
+        const imageDrawX = photoArea.x + imagePosition.x + (photoArea.width - imageDrawWidth) / 2;
+        const imageDrawY = photoArea.y + imagePosition.y + (photoArea.height - imageDrawHeight) / 2;
+        // --- FIM: LÓGICA DE DESENHO MELHORADA ---
+        
         ctx.save();
         ctx.beginPath();
         ctx.rect(photoArea.x, photoArea.y, photoArea.width, photoArea.height);
@@ -502,18 +492,18 @@ function createDownloadLink() {
             
             const area = getTransparentArea(tempModel);
             
-            const aspectRatio = userImage.width / userImage.height;
-            let imageDrawWidth = area.width;
-            let imageDrawHeight = area.width / aspectRatio;
-
-            if (imageDrawHeight < area.height) {
-                imageDrawHeight = area.height;
-                imageDrawWidth = area.height * aspectRatio;
+            const userAspect = userImage.width / userImage.height;
+            const photoAspect = area.width / area.height;
+            let imageDrawWidth, imageDrawHeight;
+            
+            if (userAspect > photoAspect) {
+                imageDrawHeight = area.height * imageZoom;
+                imageDrawWidth = imageDrawHeight * userAspect;
+            } else {
+                imageDrawWidth = area.width * imageZoom;
+                imageDrawHeight = imageDrawWidth / userAspect;
             }
 
-            imageDrawWidth *= imageZoom;
-            imageDrawHeight *= imageZoom;
-            
             const imageDrawX = (area.x + imagePosition.x) * (PRINT_WIDTH_PX / (canvas.width / SCALE_FACTOR));
             const imageDrawY = (area.y + imagePosition.y) * (PRINT_HEIGHT_PX / (canvas.height / SCALE_FACTOR));
             
