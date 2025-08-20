@@ -4,13 +4,16 @@ let modelImage = null;
 let canvas = document.getElementById('canvas');
 let ctx = canvas.getContext('2d');
 
-// Variáveis para controle da imagem
+// Variáveis para controle da imagem e do arrasto
 let imagePosition = { x: 0, y: 0 };
 let imageZoom = 1;
+let isDragging = false;
+let startX, startY;
+let photoArea = null;
 
 // Configurações de qualidade - Padrão de crachá 85x54mm em 300 DPI
-const PRINT_WIDTH_MM = 54;
-const PRINT_HEIGHT_MM = 85;
+const PRINT_WIDTH_MM = 85;
+const PRINT_HEIGHT_MM = 54;
 const DPI = 300;
 const PIXELS_PER_MM = DPI / 25.4;
 const PRINT_WIDTH_PX = Math.round(PRINT_WIDTH_MM * PIXELS_PER_MM);
@@ -42,6 +45,8 @@ document.getElementById('uploadModel').addEventListener('change', function(event
         reader.onload = function(e) {
             modelImage = new Image();
             modelImage.onload = function() {
+                // Ao carregar um novo modelo, recalculamos a área transparente
+                photoArea = getTransparentArea(modelImage);
                 drawBadge();
             };
             modelImage.src = e.target.result;
@@ -76,6 +81,7 @@ document.getElementById('loadModelUrl').addEventListener('click', function() {
     modelImage = new Image();
     modelImage.crossOrigin = 'anonymous';
     modelImage.onload = function() {
+        photoArea = getTransparentArea(modelImage);
         drawBadge();
     };
     modelImage.onerror = function() {
@@ -99,7 +105,7 @@ document.getElementById('roleSelect').addEventListener('change', function() {
 
 document.getElementById('roleCustom').addEventListener('input', drawBadge);
 
-// Função para processar a imagem do usuário
+// Função para processar a imagem do usuário (aplica nitidez)
 function processUserImage() {
     const tempCanvas = document.createElement('canvas');
     const tempCtx = tempCanvas.getContext('2d');
@@ -167,6 +173,40 @@ function resetImageControls() {
     document.getElementById('positionY').value = 0;
     document.getElementById('zoom').value = 100;
     updateSliderValues();
+}
+
+// Função para encontrar a área transparente no modelo
+function getTransparentArea(image) {
+    const tempCanvas = document.createElement('canvas');
+    const tempCtx = tempCanvas.getContext('2d');
+    tempCanvas.width = image.width;
+    tempCanvas.height = image.height;
+    tempCtx.drawImage(image, 0, 0);
+    
+    const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+    const data = imageData.data;
+    
+    let minX = tempCanvas.width, minY = tempCanvas.height;
+    let maxX = 0, maxY = 0;
+    
+    for (let y = 0; y < tempCanvas.height; y++) {
+        for (let x = 0; x < tempCanvas.width; x++) {
+            const alpha = data[((y * tempCanvas.width) + x) * 4 + 3];
+            if (alpha === 0) {
+                if (x < minX) minX = x;
+                if (y < minY) minY = y;
+                if (x > maxX) maxX = x;
+                if (y > maxY) maxY = y;
+            }
+        }
+    }
+    
+    return {
+        x: minX,
+        y: minY,
+        width: maxX - minX,
+        height: maxY - minY
+    };
 }
 
 // Event Listeners para controles
@@ -251,77 +291,50 @@ function updateSliderValues() {
     document.getElementById('locationSizeValue').textContent = document.getElementById('locationSize').value + 'px';
 }
 
-// **NOVA FUNÇÃO ADICIONADA: Lógica para desenhar o crachá**
+// **Função principal para desenhar o crachá**
 function drawBadge() {
-    // Limpa o canvas
     ctx.clearRect(0, 0, canvas.width / SCALE_FACTOR, canvas.height / SCALE_FACTOR);
     
-    // Desenha o modelo
-    if (modelImage) {
-        ctx.drawImage(modelImage, 0, 0, canvas.width / SCALE_FACTOR, canvas.height / SCALE_FACTOR);
-    }
-
     // Desenha a foto do usuário se existir
     if (userImage) {
-        // Aplica ajustes de brilho e contraste
-        const brightness = parseInt(document.getElementById('brightness').value);
-        const contrast = parseInt(document.getElementById('contrast').value);
-        ctx.filter = `brightness(${100 + brightness}%) contrast(${100 + contrast}%)`;
+        ctx.filter = `brightness(${100 + parseInt(document.getElementById('brightness').value)}%) contrast(${100 + parseInt(document.getElementById('contrast').value)}%)`;
         
-        // Define a área da foto com base na transparência do modelo
-        if (modelImage) {
-            // Cria um canvas temporário para obter a área transparente
-            const tempCanvas = document.createElement('canvas');
-            const tempCtx = tempCanvas.getContext('2d');
-            tempCanvas.width = canvas.width / SCALE_FACTOR;
-            tempCanvas.height = canvas.height / SCALE_FACTOR;
-            tempCtx.drawImage(modelImage, 0, 0, tempCanvas.width, tempCanvas.height);
-            const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
-            
-            let minX = tempCanvas.width, minY = tempCanvas.height;
-            let maxX = 0, maxY = 0;
-            const data = imageData.data;
-            for (let y = 0; y < tempCanvas.height; y++) {
-                for (let x = 0; x < tempCanvas.width; x++) {
-                    const alpha = data[((y * tempCanvas.width) + x) * 4 + 3];
-                    if (alpha === 0) {
-                        if (x < minX) minX = x;
-                        if (y < minY) minY = y;
-                        if (x > maxX) maxX = x;
-                        if (y > maxY) maxY = y;
-                    }
-                }
-            }
-            
-            const photoWidth = maxX - minX;
-            const photoHeight = maxY - minY;
+        // Define as dimensões e posição para a imagem do usuário
+        const aspectRatio = userImage.width / userImage.height;
+        let imageDrawWidth = photoArea.width;
+        let imageDrawHeight = photoArea.width / aspectRatio;
 
-            // Calcula a nova posição e tamanho da imagem do usuário com zoom e posição
-            const imageX = minX + imagePosition.x;
-            const imageY = minY + imagePosition.y;
-            const imageZoomedWidth = photoWidth * imageZoom;
-            const imageZoomedHeight = photoHeight * imageZoom;
-            const sourceX = userImage.width / 2 - imageZoomedWidth / 2;
-            const sourceY = userImage.height / 2 - imageZoomedHeight / 2;
-
-            ctx.save();
-            ctx.beginPath();
-            ctx.rect(minX, minY, photoWidth, photoHeight);
-            ctx.clip();
-            ctx.drawImage(userImage, 
-                          sourceX, sourceY, imageZoomedWidth, imageZoomedHeight,
-                          imageX, imageY, imageZoomedWidth, imageZoomedHeight);
-            ctx.restore();
-            
-        } else {
-            // Desenha a imagem do usuário sem o modelo
-            ctx.drawImage(userImage, 0, 0, canvas.width / SCALE_FACTOR, canvas.height / SCALE_FACTOR);
+        if (imageDrawHeight < photoArea.height) {
+            imageDrawHeight = photoArea.height;
+            imageDrawWidth = photoArea.height * aspectRatio;
         }
 
-        // Reseta o filtro para não afetar o texto
+        imageDrawWidth *= imageZoom;
+        imageDrawHeight *= imageZoom;
+
+        const imageDrawX = photoArea.x + imagePosition.x;
+        const imageDrawY = photoArea.y + imagePosition.y;
+
+        // Adiciona um clipe para garantir que a imagem não saia da área transparente
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(photoArea.x, photoArea.y, photoArea.width, photoArea.height);
+        ctx.clip();
+        ctx.drawImage(userImage, 
+                      imageDrawX, 
+                      imageDrawY, 
+                      imageDrawWidth, 
+                      imageDrawHeight);
+        ctx.restore();
+        
         ctx.filter = 'none';
     }
 
+    // Desenha o modelo por cima da foto
+    if (modelImage) {
+        ctx.drawImage(modelImage, 0, 0, canvas.width / SCALE_FACTOR, canvas.height / SCALE_FACTOR);
+    }
+    
     // Desenha os textos
     const name = document.getElementById('name').value;
     const roleSelect = document.getElementById('roleSelect').value;
@@ -329,7 +342,6 @@ function drawBadge() {
     const role = roleSelect === 'custom' ? roleCustom : roleSelect;
     const location = document.getElementById('location').value;
     
-    // Posições e tamanhos de fonte (ajustar conforme o modelo)
     const nameSize = parseInt(document.getElementById('nameSize').value);
     const roleSize = parseInt(document.getElementById('roleSize').value);
     const locationSize = parseInt(document.getElementById('locationSize').value);
@@ -337,22 +349,60 @@ function drawBadge() {
     ctx.fillStyle = '#1e3a8a';
     ctx.textAlign = 'center';
     
-    // Nome
     ctx.font = `bold ${nameSize}px Arial, sans-serif`;
     ctx.fillText(name, (canvas.width / SCALE_FACTOR) / 2, 280);
     
-    // Função/Curso
     ctx.font = `${roleSize}px Arial, sans-serif`;
     ctx.fillText(role, (canvas.width / SCALE_FACTOR) / 2, 305);
     
-    // Local
     ctx.font = `${locationSize}px Arial, sans-serif`;
     ctx.fillText(location, (canvas.width / SCALE_FACTOR) / 2, 330);
 }
 
-// **NOVOS EVENT LISTENERS ADICIONADOS**
+// Event Listeners para arrastar a imagem
+canvas.addEventListener('mousedown', function(e) {
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = ((e.clientX - rect.left) / rect.width) * (canvas.width / SCALE_FACTOR);
+    const mouseY = ((e.clientY - rect.top) / rect.height) * (canvas.height / SCALE_FACTOR);
 
-// Gerar Crachá (apenas exibe a seção de download)
+    if (photoArea && mouseX >= photoArea.x && mouseX <= photoArea.x + photoArea.width &&
+        mouseY >= photoArea.y && mouseY <= photoArea.y + photoArea.height) {
+        isDragging = true;
+        startX = mouseX - imagePosition.x;
+        startY = mouseY - imagePosition.y;
+        canvas.style.cursor = 'grabbing';
+    }
+});
+
+canvas.addEventListener('mousemove', function(e) {
+    if (isDragging) {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = ((e.clientX - rect.left) / rect.width) * (canvas.width / SCALE_FACTOR);
+        const mouseY = ((e.clientY - rect.top) / rect.height) * (canvas.height / SCALE_FACTOR);
+        
+        imagePosition.x = mouseX - startX;
+        imagePosition.y = mouseY - startY;
+
+        // Atualiza os sliders para refletir o arrasto
+        document.getElementById('positionX').value = imagePosition.x;
+        document.getElementById('positionY').value = imagePosition.y;
+        updateSliderValues();
+        
+        drawBadge();
+    }
+});
+
+canvas.addEventListener('mouseup', function() {
+    isDragging = false;
+    canvas.style.cursor = 'grab';
+});
+
+canvas.addEventListener('mouseleave', function() {
+    isDragging = false;
+    canvas.style.cursor = 'default';
+});
+
+// Event Listeners para gerar e imprimir
 document.getElementById('generateCard').addEventListener('click', function() {
     if (userImage && modelImage) {
         document.getElementById('downloadSection').style.display = 'block';
@@ -362,10 +412,8 @@ document.getElementById('generateCard').addEventListener('click', function() {
     }
 });
 
-// Imprimir Crachá
 document.getElementById('printCard').addEventListener('click', function() {
     if (userImage && modelImage) {
-        // Redraws the badge one last time before printing
         drawBadge();
         window.print();
     } else {
@@ -373,68 +421,53 @@ document.getElementById('printCard').addEventListener('click', function() {
     }
 });
 
-// Criar link de download de alta resolução
 function createDownloadLink() {
-    // Cria um canvas temporário com a resolução de impressão
     const printCanvas = document.createElement('canvas');
     printCanvas.width = PRINT_WIDTH_PX;
     printCanvas.height = PRINT_HEIGHT_PX;
     const printCtx = printCanvas.getContext('2d');
     
-    // Desenha o conteúdo do canvas de preview no novo canvas
     printCtx.imageSmoothingEnabled = true;
     printCtx.imageSmoothingQuality = 'high';
     printCtx.filter = `brightness(${100 + parseInt(document.getElementById('brightness').value)}%) contrast(${100 + parseInt(document.getElementById('contrast').value)}%)`;
 
-    // Desenha o modelo e a imagem do usuário
-    if (modelImage) {
-        printCtx.drawImage(modelImage, 0, 0, printCanvas.width, printCanvas.height);
-    }
-    
     if (userImage) {
-        // A lógica de corte e posicionamento aqui precisa ser ajustada para a alta resolução.
-        // Assumindo que a área de foto no modelo é proporcional, podemos usar os mesmos cálculos.
         const tempCanvas = document.createElement('canvas');
         const tempCtx = tempCanvas.getContext('2d');
         tempCanvas.width = modelImage.width;
         tempCanvas.height = modelImage.height;
         tempCtx.drawImage(modelImage, 0, 0);
-        const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
-        
-        let minX = tempCanvas.width, minY = tempCanvas.height;
-        let maxX = 0, maxY = 0;
-        const data = imageData.data;
-        for (let y = 0; y < tempCanvas.height; y++) {
-            for (let x = 0; x < tempCanvas.width; x++) {
-                const alpha = data[((y * tempCanvas.width) + x) * 4 + 3];
-                if (alpha === 0) {
-                    if (x < minX) minX = x;
-                    if (y < minY) minY = y;
-                    if (x > maxX) maxX = x;
-                    if (y > maxY) maxY = y;
-                }
-            }
-        }
-        
-        const photoWidth = maxX - minX;
-        const photoHeight = maxY - minY;
+        const area = getTransparentArea(tempCanvas);
 
-        const imageX = minX + (imagePosition.x * (PRINT_WIDTH_PX / (canvas.width / SCALE_FACTOR)));
-        const imageY = minY + (imagePosition.y * (PRINT_HEIGHT_PX / (canvas.height / SCALE_FACTOR)));
-        const imageZoomedWidth = photoWidth * imageZoom;
-        const imageZoomedHeight = photoHeight * imageZoom;
+        const aspectRatio = userImage.width / userImage.height;
+        let imageDrawWidth = area.width;
+        let imageDrawHeight = area.width / aspectRatio;
+
+        if (imageDrawHeight < area.height) {
+            imageDrawHeight = area.height;
+            imageDrawWidth = area.height * aspectRatio;
+        }
+
+        imageDrawWidth *= imageZoom;
+        imageDrawHeight *= imageZoom;
+
+        const imageDrawX = (area.x + imagePosition.x) * (PRINT_WIDTH_PX / (canvas.width / SCALE_FACTOR));
+        const imageDrawY = (area.y + imagePosition.y) * (PRINT_HEIGHT_PX / (canvas.height / SCALE_FACTOR));
         
         printCtx.save();
         printCtx.beginPath();
-        printCtx.rect(minX * (PRINT_WIDTH_PX / tempCanvas.width), minY * (PRINT_HEIGHT_PX / tempCanvas.height), photoWidth * (PRINT_WIDTH_PX / tempCanvas.width), photoHeight * (PRINT_HEIGHT_PX / tempCanvas.height));
+        printCtx.rect(area.x * (PRINT_WIDTH_PX / (canvas.width / SCALE_FACTOR)), area.y * (PRINT_HEIGHT_PX / (canvas.height / SCALE_FACTOR)), area.width * (PRINT_WIDTH_PX / (canvas.width / SCALE_FACTOR)), area.height * (PRINT_HEIGHT_PX / (canvas.height / SCALE_FACTOR)));
         printCtx.clip();
-        printCtx.drawImage(userImage, imageX, imageY, imageZoomedWidth, imageZoomedHeight);
+        printCtx.drawImage(userImage, imageDrawX, imageDrawY, imageDrawWidth, imageDrawHeight);
         printCtx.restore();
     }
 
     printCtx.filter = 'none';
 
-    // Desenha os textos
+    if (modelImage) {
+        printCtx.drawImage(modelImage, 0, 0, printCanvas.width, printCanvas.height);
+    }
+    
     const name = document.getElementById('name').value;
     const roleSelect = document.getElementById('roleSelect').value;
     const roleCustom = document.getElementById('roleCustom').value;
@@ -457,12 +490,9 @@ function createDownloadLink() {
     printCtx.font = `${locationSize}px Arial, sans-serif`;
     printCtx.fillText(location, PRINT_WIDTH_PX / 2, 330 * (PRINT_HEIGHT_PX / (canvas.height / SCALE_FACTOR)));
 
-
-    // Gera o link de download
     const dataURL = printCanvas.toDataURL('image/png');
     const downloadLink = document.getElementById('downloadLink');
     downloadLink.href = dataURL;
 }
 
-// Chama a função de atualização inicial dos valores
 updateSliderValues();
