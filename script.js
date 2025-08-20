@@ -3,6 +3,7 @@ let userImage = null;
 let modelImage = null;
 let canvas = document.getElementById('canvas');
 let ctx = canvas.getContext('2d');
+let models = {}; // Objeto para armazenar a lista de modelos
 
 // Variáveis para controle da imagem e do arrasto
 let imagePosition = { x: 0, y: 0 };
@@ -32,6 +33,63 @@ ctx.imageSmoothingEnabled = true;
 ctx.imageSmoothingQuality = 'high';
 ctx.textRenderingOptimization = 'optimizeQuality';
 
+// --- INÍCIO: NOVAS FUNCIONALIDADES ---
+// Lista de modelos pré-definidos. Preencha os links dos modelos aqui.
+// Esta seção será substituída por uma lista com 4 opções de modelos
+const modelLinks = {
+    'Modelo 1': 'LINK_PARA_MODELO_1.png',
+    'Modelo 2': 'LINK_PARA_MODELO_2.png',
+    'Modelo 3': 'LINK_PARA_MODELO_3.png',
+    'Modelo 4': 'LINK_PARA_MODELO_4.png'
+};
+
+// Função para carregar um modelo a partir de uma URL
+function loadModelFromUrl(url) {
+    if (!url) {
+        return;
+    }
+    
+    modelImage = new Image();
+    modelImage.crossOrigin = 'anonymous';
+    modelImage.onload = function() {
+        console.log('Modelo do crachá carregado com sucesso.');
+        photoArea = getTransparentArea(modelImage);
+        drawBadge();
+    };
+    modelImage.onerror = function() {
+        alert('Erro ao carregar o modelo da URL. Por favor, tente novamente ou carregue seu próprio modelo.');
+    };
+    modelImage.src = url;
+}
+
+// Preencher o select com os modelos e carregar o modelo padrão
+function setupModels() {
+    const modelSelect = document.getElementById('modelSelect');
+    let defaultModelUrl = null;
+
+    for (const name in modelLinks) {
+        if (modelLinks.hasOwnProperty(name)) {
+            const option = document.createElement('option');
+            option.value = modelLinks[name];
+            option.textContent = name;
+            modelSelect.appendChild(option);
+        }
+    }
+    
+    // Define o valor padrão para a seleção e carrega o primeiro modelo
+    if (Object.keys(modelLinks).length > 0) {
+        const firstModelName = Object.keys(modelLinks)[0];
+        modelSelect.value = modelLinks[firstModelName];
+        loadModelFromUrl(modelLinks[firstModelName]);
+    }
+    
+    modelSelect.addEventListener('change', function() {
+        loadModelFromUrl(this.value);
+    });
+}
+// --- FIM: NOVAS FUNCIONALIDADES ---
+
+
 // Event Listeners para upload de arquivos
 document.getElementById('uploadModel').addEventListener('change', function(event) {
     const file = event.target.files[0];
@@ -58,6 +116,13 @@ document.getElementById('uploadModel').addEventListener('change', function(event
 document.getElementById('uploadImage').addEventListener('change', function(event) {
     const file = event.target.files[0];
     if (file) {
+        // Alerta para carregar o modelo antes da foto do usuário
+        if (!modelImage) {
+            alert('Por favor, carregue ou selecione um modelo de crachá primeiro.');
+            event.target.value = ''; // Limpa o campo de arquivo
+            return;
+        }
+
         const reader = new FileReader();
         reader.onload = function(e) {
             userImage = new Image();
@@ -71,26 +136,9 @@ document.getElementById('uploadImage').addEventListener('change', function(event
     }
 });
 
-// Carregar modelo via URL
-document.getElementById('loadModelUrl').addEventListener('click', function() {
-    const url = document.getElementById('modelUrl').value.trim();
-    if (!url) {
-        alert('Por favor, insira uma URL válida.');
-        return;
-    }
-    
-    modelImage = new Image();
-    modelImage.crossOrigin = 'anonymous';
-    modelImage.onload = function() {
-        console.log('Modelo da URL carregado com sucesso.');
-        photoArea = getTransparentArea(modelImage);
-        drawBadge();
-    };
-    modelImage.onerror = function() {
-        alert('Erro ao carregar a imagem da URL. Verifique se a URL está correta e se permite acesso externo.');
-    };
-    modelImage.src = url;
-});
+// Remover a lógica de carregamento via URL, pois será substituída pelo select
+// document.getElementById('loadModelUrl').addEventListener('click', function() { ... });
+
 
 // Controle do select de função/curso
 document.getElementById('roleSelect').addEventListener('change', function() {
@@ -486,7 +534,7 @@ function createDownloadLink() {
             
             const nameSize = parseInt(document.getElementById('nameSize').value) * (PRINT_WIDTH_PX / (canvas.width / SCALE_FACTOR));
             const roleSize = parseInt(document.getElementById('roleSize').value) * (PRINT_WIDTH_PX / (canvas.width / SCALE_FACTOR));
-            const locationSize = parseInt(document.getElementById('locationSize').value) * (PRINT_WIDTH_PX / (canvas.height / SCALE_FACTOR));
+            const locationSize = parseInt(document.getElementById('locationSize').value) * (PRINT_HEIGHT_PX / (canvas.height / SCALE_FACTOR));
             
             printCtx.fillStyle = '#1e3a8a';
             printCtx.textAlign = 'center';
@@ -507,4 +555,6 @@ function createDownloadLink() {
     }
 }
 
+// Inicializa a configuração dos modelos e os controles
+setupModels();
 updateSliderValues();
