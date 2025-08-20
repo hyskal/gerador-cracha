@@ -9,8 +9,8 @@ let imagePosition = { x: 0, y: 0 };
 let imageZoom = 1;
 
 // Configurações de qualidade - Padrão de crachá 85x54mm em 300 DPI
-const PRINT_WIDTH_MM = 85;
-const PRINT_HEIGHT_MM = 54;
+const PRINT_WIDTH_MM = 54;
+const PRINT_HEIGHT_MM = 85;
 const DPI = 300;
 const PIXELS_PER_MM = DPI / 25.4;
 const PRINT_WIDTH_PX = Math.round(PRINT_WIDTH_MM * PIXELS_PER_MM);
