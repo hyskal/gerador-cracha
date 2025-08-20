@@ -45,7 +45,7 @@ document.getElementById('uploadModel').addEventListener('change', function(event
         reader.onload = function(e) {
             modelImage = new Image();
             modelImage.onload = function() {
-                // Ao carregar um novo modelo, recalculamos a área transparente
+                console.log('Modelo do crachá carregado com sucesso.');
                 photoArea = getTransparentArea(modelImage);
                 drawBadge();
             };
@@ -62,6 +62,7 @@ document.getElementById('uploadImage').addEventListener('change', function(event
         reader.onload = function(e) {
             userImage = new Image();
             userImage.onload = function() {
+                console.log('Imagem do usuário carregada com sucesso.');
                 processUserImage();
             };
             userImage.src = e.target.result;
@@ -81,6 +82,7 @@ document.getElementById('loadModelUrl').addEventListener('click', function() {
     modelImage = new Image();
     modelImage.crossOrigin = 'anonymous';
     modelImage.onload = function() {
+        console.log('Modelo da URL carregado com sucesso.');
         photoArea = getTransparentArea(modelImage);
         drawBadge();
     };
@@ -155,7 +157,7 @@ function applySharpenFilter(imageData) {
                         sum += data[pixelIndex] * kernel[kernelIndex];
                     }
                 }
-                const outputIndex = (y * width + x) * 4 + c;
+                const outputIndex = (y * width + x) * 4 + 3;
                 outputData[outputIndex] = Math.min(255, Math.max(0, sum));
             }
             const alphaIndex = (y * width + x) * 4 + 3;
@@ -201,12 +203,15 @@ function getTransparentArea(image) {
         }
     }
     
-    return {
+    const photoArea = {
         x: minX,
         y: minY,
         width: maxX - minX,
         height: maxY - minY
     };
+    
+    console.log('Área transparente detectada:', photoArea);
+    return photoArea;
 }
 
 // Event Listeners para controles
@@ -291,15 +296,16 @@ function updateSliderValues() {
     document.getElementById('locationSizeValue').textContent = document.getElementById('locationSize').value + 'px';
 }
 
-// **Função principal para desenhar o crachá**
+// Função principal para desenhar o crachá
 function drawBadge() {
+    console.log('Iniciando o desenho do crachá...');
     ctx.clearRect(0, 0, canvas.width / SCALE_FACTOR, canvas.height / SCALE_FACTOR);
     
-    // Desenha a foto do usuário se existir
-    if (userImage) {
+    // Desenha a foto do usuário se existir e a área transparente tiver sido detectada
+    if (userImage && photoArea) {
+        console.log('Desenhando imagem do usuário. Posição:', imagePosition, 'Zoom:', imageZoom);
         ctx.filter = `brightness(${100 + parseInt(document.getElementById('brightness').value)}%) contrast(${100 + parseInt(document.getElementById('contrast').value)}%)`;
         
-        // Define as dimensões e posição para a imagem do usuário
         const aspectRatio = userImage.width / userImage.height;
         let imageDrawWidth = photoArea.width;
         let imageDrawHeight = photoArea.width / aspectRatio;
@@ -315,12 +321,15 @@ function drawBadge() {
         const imageDrawX = photoArea.x + imagePosition.x;
         const imageDrawY = photoArea.y + imagePosition.y;
 
-        // Adiciona um clipe para garantir que a imagem não saia da área transparente
         ctx.save();
         ctx.beginPath();
         ctx.rect(photoArea.x, photoArea.y, photoArea.width, photoArea.height);
         ctx.clip();
         ctx.drawImage(userImage, 
+                      0, 
+                      0, 
+                      userImage.width, 
+                      userImage.height,
                       imageDrawX, 
                       imageDrawY, 
                       imageDrawWidth, 
@@ -328,11 +337,16 @@ function drawBadge() {
         ctx.restore();
         
         ctx.filter = 'none';
+    } else {
+        console.log('Não foi possível desenhar a imagem do usuário. Certifique-se de que o modelo do crachá e a imagem do usuário foram carregados.');
     }
 
     // Desenha o modelo por cima da foto
     if (modelImage) {
+        console.log('Desenhando modelo do crachá.');
         ctx.drawImage(modelImage, 0, 0, canvas.width / SCALE_FACTOR, canvas.height / SCALE_FACTOR);
+    } else {
+        console.log('Modelo do crachá não está disponível.');
     }
     
     // Desenha os textos
@@ -357,6 +371,8 @@ function drawBadge() {
     
     ctx.font = `${locationSize}px Arial, sans-serif`;
     ctx.fillText(location, (canvas.width / SCALE_FACTOR) / 2, 330);
+
+    console.log('Desenho do crachá concluído.');
 }
 
 // Event Listeners para arrastar a imagem
@@ -383,9 +399,8 @@ canvas.addEventListener('mousemove', function(e) {
         imagePosition.x = mouseX - startX;
         imagePosition.y = mouseY - startY;
 
-        // Atualiza os sliders para refletir o arrasto
-        document.getElementById('positionX').value = imagePosition.x;
-        document.getElementById('positionY').value = imagePosition.y;
+        document.getElementById('positionX').value = Math.round(imagePosition.x);
+        document.getElementById('positionY').value = Math.round(imagePosition.y);
         updateSliderValues();
         
         drawBadge();
@@ -431,68 +446,65 @@ function createDownloadLink() {
     printCtx.imageSmoothingQuality = 'high';
     printCtx.filter = `brightness(${100 + parseInt(document.getElementById('brightness').value)}%) contrast(${100 + parseInt(document.getElementById('contrast').value)}%)`;
 
-    if (userImage) {
-        const tempCanvas = document.createElement('canvas');
-        const tempCtx = tempCanvas.getContext('2d');
-        tempCanvas.width = modelImage.width;
-        tempCanvas.height = modelImage.height;
-        tempCtx.drawImage(modelImage, 0, 0);
-        const area = getTransparentArea(tempCanvas);
+    if (userImage && modelImage) {
+        const tempModel = new Image();
+        tempModel.src = modelImage.src;
+        tempModel.onload = function() {
+            printCtx.drawImage(tempModel, 0, 0, printCanvas.width, printCanvas.height);
+            
+            const area = getTransparentArea(tempModel);
+            
+            const aspectRatio = userImage.width / userImage.height;
+            let imageDrawWidth = area.width;
+            let imageDrawHeight = area.width / aspectRatio;
 
-        const aspectRatio = userImage.width / userImage.height;
-        let imageDrawWidth = area.width;
-        let imageDrawHeight = area.width / aspectRatio;
+            if (imageDrawHeight < area.height) {
+                imageDrawHeight = area.height;
+                imageDrawWidth = area.height * aspectRatio;
+            }
 
-        if (imageDrawHeight < area.height) {
-            imageDrawHeight = area.height;
-            imageDrawWidth = area.height * aspectRatio;
-        }
+            imageDrawWidth *= imageZoom;
+            imageDrawHeight *= imageZoom;
+            
+            const imageDrawX = (area.x + imagePosition.x) * (PRINT_WIDTH_PX / (canvas.width / SCALE_FACTOR));
+            const imageDrawY = (area.y + imagePosition.y) * (PRINT_HEIGHT_PX / (canvas.height / SCALE_FACTOR));
+            
+            printCtx.save();
+            printCtx.beginPath();
+            printCtx.rect(area.x, area.y, area.width, area.height);
+            printCtx.clip();
+            printCtx.drawImage(userImage, 0, 0, userImage.width, userImage.height, imageDrawX, imageDrawY, imageDrawWidth, imageDrawHeight);
+            printCtx.restore();
 
-        imageDrawWidth *= imageZoom;
-        imageDrawHeight *= imageZoom;
+            printCtx.filter = 'none';
 
-        const imageDrawX = (area.x + imagePosition.x) * (PRINT_WIDTH_PX / (canvas.width / SCALE_FACTOR));
-        const imageDrawY = (area.y + imagePosition.y) * (PRINT_HEIGHT_PX / (canvas.height / SCALE_FACTOR));
-        
-        printCtx.save();
-        printCtx.beginPath();
-        printCtx.rect(area.x * (PRINT_WIDTH_PX / (canvas.width / SCALE_FACTOR)), area.y * (PRINT_HEIGHT_PX / (canvas.height / SCALE_FACTOR)), area.width * (PRINT_WIDTH_PX / (canvas.width / SCALE_FACTOR)), area.height * (PRINT_HEIGHT_PX / (canvas.height / SCALE_FACTOR)));
-        printCtx.clip();
-        printCtx.drawImage(userImage, imageDrawX, imageDrawY, imageDrawWidth, imageDrawHeight);
-        printCtx.restore();
+            const name = document.getElementById('name').value;
+            const roleSelect = document.getElementById('roleSelect').value;
+            const roleCustom = document.getElementById('roleCustom').value;
+            const role = roleSelect === 'custom' ? roleCustom : roleSelect;
+            const location = document.getElementById('location').value;
+            
+            const nameSize = parseInt(document.getElementById('nameSize').value) * (PRINT_WIDTH_PX / (canvas.width / SCALE_FACTOR));
+            const roleSize = parseInt(document.getElementById('roleSize').value) * (PRINT_WIDTH_PX / (canvas.width / SCALE_FACTOR));
+            const locationSize = parseInt(document.getElementById('locationSize').value) * (PRINT_WIDTH_PX / (canvas.height / SCALE_FACTOR));
+            
+            printCtx.fillStyle = '#1e3a8a';
+            printCtx.textAlign = 'center';
+            
+            printCtx.font = `bold ${nameSize}px Arial, sans-serif`;
+            printCtx.fillText(name, PRINT_WIDTH_PX / 2, 280 * (PRINT_HEIGHT_PX / (canvas.height / SCALE_FACTOR)));
+            
+            printCtx.font = `${roleSize}px Arial, sans-serif`;
+            printCtx.fillText(role, PRINT_WIDTH_PX / 2, 305 * (PRINT_HEIGHT_PX / (canvas.height / SCALE_FACTOR)));
+            
+            printCtx.font = `${locationSize}px Arial, sans-serif`;
+            printCtx.fillText(location, PRINT_WIDTH_PX / 2, 330 * (PRINT_HEIGHT_PX / (canvas.height / SCALE_FACTOR)));
+
+            const dataURL = printCanvas.toDataURL('image/png');
+            const downloadLink = document.getElementById('downloadLink');
+            downloadLink.href = dataURL;
+        };
     }
-
-    printCtx.filter = 'none';
-
-    if (modelImage) {
-        printCtx.drawImage(modelImage, 0, 0, printCanvas.width, printCanvas.height);
-    }
-    
-    const name = document.getElementById('name').value;
-    const roleSelect = document.getElementById('roleSelect').value;
-    const roleCustom = document.getElementById('roleCustom').value;
-    const role = roleSelect === 'custom' ? roleCustom : roleSelect;
-    const location = document.getElementById('location').value;
-    
-    const nameSize = parseInt(document.getElementById('nameSize').value) * (PRINT_WIDTH_PX / (canvas.width / SCALE_FACTOR));
-    const roleSize = parseInt(document.getElementById('roleSize').value) * (PRINT_WIDTH_PX / (canvas.width / SCALE_FACTOR));
-    const locationSize = parseInt(document.getElementById('locationSize').value) * (PRINT_WIDTH_PX / (canvas.width / SCALE_FACTOR));
-    
-    printCtx.fillStyle = '#1e3a8a';
-    printCtx.textAlign = 'center';
-    
-    printCtx.font = `bold ${nameSize}px Arial, sans-serif`;
-    printCtx.fillText(name, PRINT_WIDTH_PX / 2, 280 * (PRINT_HEIGHT_PX / (canvas.height / SCALE_FACTOR)));
-    
-    printCtx.font = `${roleSize}px Arial, sans-serif`;
-    printCtx.fillText(role, PRINT_WIDTH_PX / 2, 305 * (PRINT_HEIGHT_PX / (canvas.height / SCALE_FACTOR)));
-    
-    printCtx.font = `${locationSize}px Arial, sans-serif`;
-    printCtx.fillText(location, PRINT_WIDTH_PX / 2, 330 * (PRINT_HEIGHT_PX / (canvas.height / SCALE_FACTOR)));
-
-    const dataURL = printCanvas.toDataURL('image/png');
-    const downloadLink = document.getElementById('downloadLink');
-    downloadLink.href = dataURL;
 }
 
 updateSliderValues();
