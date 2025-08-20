@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador de Crachá - CETEP</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Gerador de Crachá CETEP</h1>
+            <p>Crie seu crachá personalizado de forma simples e moderna</p>
+        </div>
+
+        <!-- Painel de Upload (Esquerda) -->
+        <div class="upload-panel">
+            <div class="upload-section">
+                <h3>Modelo do Crachá (PNG com Transparência)</h3>
+                <div class="file-input-wrapper">
+                    <input type="file" id="uploadModel" class="file-input" accept="image/png">
+                    <label for="uploadModel" class="file-input-button">📄 Carregar Modelo PNG</label>
+                </div>
+                <p style="font-size: 0.8rem; color: #6b7280; margin-top: 0.5rem;">
+                    ⚠️ Use apenas arquivos PNG com área transparente onde a foto deve aparecer
+                </p>
+            </div>
+
+            <div class="upload-section">
+                <h3>Foto do Usuário</h3>
+                <div class="file-input-wrapper">
+                    <input type="file" id="uploadImage" class="file-input" accept="image/*">
+                    <label for="uploadImage" class="file-input-button">📸 Carregar Foto</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Preview do Crachá (Centro) -->
+        <div class="canvas-container">
+            <div style="position: relative; display: inline-block;">
+                <canvas id="canvas" width="300" height="400"></canvas>
+            </div>
+        </div>
+
+        <!-- Controles de Edição (Direita) -->
+        <div class="controls-panel">
+            <div class="control-group">
+                <label for="brightness">Brilho</label>
+                <div class="slider-container">
+                    <input type="range" id="brightness" class="slider" min="-50" max="50" value="0">
+                    <div class="slider-value" id="brightnessValue">0</div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label for="contrast">Contraste</label>
+                <div class="slider-container">
+                    <input type="range" id="contrast" class="slider" min="-50" max="50" value="0">
+                    <div class="slider-value" id="contrastValue">0</div>
+                </div>
+            </div>
+
+            <div class="control-group" id="imageControls" style="display: none;">
+                <label>Posicionamento da Imagem</label>
+                <div style="margin-bottom: 1rem;">
+                    <label for="positionX" style="font-size: 0.85rem; margin-bottom: 0.25rem;">Posição X (Horizontal)</label>
+                    <div class="slider-container">
+                        <input type="range" id="positionX" class="slider" min="-100" max="100" value="0">
+                        <div class="slider-value" id="positionXValue">0</div>
+                    </div>
+                </div>
+                <div style="margin-bottom: 1rem;">
+                    <label for="positionY" style="font-size: 0.85rem; margin-bottom: 0.25rem;">Posição Y (Vertical)</label>
+                    <div class="slider-container">
+                        <input type="range" id="positionY" class="slider" min="-100" max="100" value="0">
+                        <div class="slider-value" id="positionYValue">0</div>
+                    </div>
+                </div>
+                <div style="margin-bottom: 1rem;">
+                    <label>Zoom da Imagem</label>
+                    <div style="display: flex; gap: 0.5rem; align-items: center; margin-top: 0.5rem;">
+                        <button type="button" id="zoomOut" class="zoom-btn">🔍−</button>
+                        <input type="range" id="zoom" class="slider" min="50" max="200" value="100" style="flex: 1;">
+                        <button type="button" id="zoomIn" class="zoom-btn">🔍+</button>
+                    </div>
+                    <div class="slider-value" id="zoomValue">100%</div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label for="name">Nome</label>
+                <input type="text" id="name" class="text-input" placeholder="Digite o nome completo">
+            </div>
+
+            <div class="control-group">
+                <label for="role">Função/Curso</label>
+                <input type="text" id="role" class="text-input" placeholder="Ex: TÉCNICO EM INFORMÁTICA">
+            </div>
+
+            <div class="control-group">
+                <label for="location">Local</label>
+                <input type="text" id="location" class="text-input" placeholder="Ex: ALAGOINHAS">
+            </div>
+        </div>
+
+        <div class="generate-section">
+            <button id="generateCard" class="generate-btn">Gerar Crachá</button>
+            <button id="printCard" class="print-btn">🖨️ Imprimir PDF</button>
+            <div id="downloadSection" class="download-section" style="display:none;">
+                <a id="downloadLink" href="#" class="download-link" download="cracha-cetep.png">⬇️ Baixar Crachá</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
