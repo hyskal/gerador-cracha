@@ -1,14 +1,17 @@
-# Gerador de Crachá CETEP - Arquivos Separados
+
+# Gerador de Crachá CETEP 
 
 ## Estrutura dos Arquivos
 
 ```
+
 projeto-cracha/
 │
-├── index.html      # Estrutura HTML principal
-├── style.css       # Estilos CSS
-├── script.js       # Lógica JavaScript
-└── README.md       # Este arquivo
+├── index.html      \# Estrutura HTML principal
+├── style.css       \# Estilos CSS
+├── script.js       \# Lógica JavaScript
+└── README.md       \# Este arquivo
+
 ```
 
 ## Principais Melhorias Implementadas
@@ -38,6 +41,12 @@ projeto-cracha/
 - `imageSmoothingQuality: 'high'`
 - Anti-aliasing avançado
 
+#### Sistema de Modelos:
+- **Modelos pré-definidos**: Opção para selecionar entre 4 modelos
+- **Carregamento padrão**: O "Modelo 1" é carregado automaticamente ao iniciar
+- **Upload personalizado**: Continua a possibilidade de carregar seu próprio modelo
+- **Verificação de ordem**: Um alerta avisa se a foto do usuário for carregada antes do modelo
+
 #### Sistema de Exportação:
 - **Download**: PNG em alta resolução
 - **Impressão**: PDF otimizado para crachás
@@ -51,12 +60,12 @@ projeto-cracha/
 
 ## Como Usar
 
-1. **Carregue o modelo**: Upload de arquivo PNG com área transparente
-2. **Adicione a foto**: Upload da foto do usuário
-3. **Ajuste a imagem**: Use os controles para posicionar e ajustar
-4. **Adicione informações**: Preencha nome, função e local
-5. **Gere o crachá**: Clique em "Gerar Crachá" para finalizar
-6. **Imprima ou baixe**: Use os botões de impressão ou download
+1. **Selecione o modelo**: Escolha um dos modelos pré-definidos na lista ou use o botão para carregar um modelo PNG personalizado.
+2. **Adicione a foto**: Carregue a foto do usuário. Um alerta aparecerá se o modelo não tiver sido carregado antes.
+3. **Ajuste a imagem**: Use os controles para posicionar e ajustar brilho, contraste e zoom.
+4. **Adicione informações**: Preencha nome, função e local.
+5. **Gere o crachá**: Clique em "Gerar Crachá" para finalizar.
+6. **Imprima ou baixe**: Use os botões de impressão ou download.
 
 ## Especificações Técnicas
 
@@ -76,13 +85,5 @@ projeto-cracha/
 - CSS de impressão específico para crachás
 - Responsividade para diferentes dispositivos
 
-## Correções Implementadas
-
-1. **Codificação UTF-8** corrigida
-2. **Consistência de código** - remoção de duplicações
-3. **Otimização de performance** - canvas mais eficiente
-4. **Qualidade de impressão** - 85x54mm perfeitos
-5. **Interface mais limpa** - layout em 3 colunas
-6. **Controles mais precisos** - sliders e botões otimizados
-
 O sistema agora oferece qualidade profissional para impressão de crachás no formato padrão internacional, com interface moderna e controles precisos.
+```
