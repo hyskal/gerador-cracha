@@ -8,6 +8,7 @@
  * Mantenha a lista limitada às 4 últimas alterações para clareza e concisão.
  */
 /* * Versão 1.1: Adicionado CHANGELOG no início do arquivo.
+ * Versão 1.2: Adicionado estilo para os novos campos de dropdown e input custom.
  */
 
 * {
@@ -267,6 +268,11 @@ body {
     max-width: 100%;
     height: auto;
     border: 1px solid #e5e7eb;
+    cursor: grab;
+}
+
+#canvas:active {
+    cursor: grabbing;
 }
 
 .generate-section {
@@ -438,8 +444,9 @@ body {
     }
     
     #canvas {
-        width: 85mm !important;
-        height: 54mm !important;
+        /* Aumentado o zoom para corresponder ao tamanho do crachá */
+        width: 54mm !important;
+        height: 85mm !important;
         box-shadow: none;
         border: none;
     }
