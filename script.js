@@ -8,8 +8,8 @@
  * Mantenha a lista limitada às 4 últimas alterações para clareza e concisão.
  */
 /* * Versão 1.1: Adicionado CHANGELOG no início do arquivo.
+ * Versão 1.2: Implementada lógica para mover a foto com o mouse, adicionados JSON para listas suspensas de cursos e locais com opção "Outro (especificar)", reposicionado os campos de texto no crachá e corrigido as dimensões de impressão para 54mm x 85mm.
  */
-
 
 // Variáveis globais
 let userImage = null;
@@ -25,9 +25,9 @@ let isDragging = false;
 let startX, startY;
 let photoArea = null;
 
-// Configurações de qualidade - Padrão de crachá 85x54mm em 300 DPI
-const PRINT_WIDTH_MM = 85;
-const PRINT_HEIGHT_MM = 54;
+// Configurações de qualidade - Padrão de crachá 54x85mm em 300 DPI
+const PRINT_WIDTH_MM = 54;
+const PRINT_HEIGHT_MM = 85;
 const DPI = 300;
 const PIXELS_PER_MM = DPI / 25.4;
 const PRINT_WIDTH_PX = Math.round(PRINT_WIDTH_MM * PIXELS_PER_MM);
@@ -58,6 +58,22 @@ const modelLinks = {
     'Modelo 4': 'https://i.ibb.co/PZQLwy4/cgara-transpp.png'
 };
 
+// JSON para cursos e locais
+const data = {
+    "courses": [
+        "TÉCNICO EM ANÁLISES CLÍNICAS",
+        "TÉCNICO EM NUTRIÇÃO E DIETÉTICA",
+        "TÉCNICO EM SERVIÇOS JURÍDICOS",
+        "TÉCNICO EM INFORMÁTICA",
+        "TÉCNICO EM AGROECOLOGIA",
+        "TÉCNICO EM ADMINISTRAÇÃO"
+    ],
+    "locations": [
+        "HOSPITAL REGIONAL DANTAS BIÃO",
+        "VITALIA LAB"
+    ]
+};
+
 // Função para carregar um modelo a partir de uma URL
 function loadModelFromUrl(url) {
     if (!url) {
@@ -77,7 +93,54 @@ function loadModelFromUrl(url) {
     modelImage.src = url;
 }
 
-// Preencher o select com os modelos e carregar o modelo padrão
+// Função para preencher os dropdowns
+function setupDropdowns() {
+    const courseSelect = document.getElementById('courseSelect');
+    const locationSelect = document.getElementById('locationSelect');
+    
+    // Preenche o dropdown de Cursos
+    data.courses.forEach(course => {
+        const option = document.createElement('option');
+        option.value = course;
+        option.textContent = course;
+        courseSelect.appendChild(option);
+    });
+    const courseOption = document.createElement('option');
+    courseOption.value = 'custom';
+    courseOption.textContent = 'Outro (especificar)';
+    courseSelect.appendChild(courseOption);
+
+    // Preenche o dropdown de Locais
+    data.locations.forEach(location => {
+        const option = document.createElement('option');
+        option.value = location;
+        option.textContent = location;
+        locationSelect.appendChild(option);
+    });
+    const locationOption = document.createElement('option');
+    locationOption.value = 'custom';
+    locationOption.textContent = 'Outro (especificar)';
+    locationSelect.appendChild(locationOption);
+
+    // Adiciona event listeners para mostrar/esconder o campo de texto customizado
+    courseSelect.addEventListener('change', function() {
+        const customInput = document.getElementById('courseCustom');
+        customInput.style.display = this.value === 'custom' ? 'block' : 'none';
+        drawBadge();
+    });
+
+    locationSelect.addEventListener('change', function() {
+        const customInput = document.getElementById('locationCustom');
+        customInput.style.display = this.value === 'custom' ? 'block' : 'none';
+        drawBadge();
+    });
+
+    // Event listeners para os campos de texto customizados
+    document.getElementById('courseCustom').addEventListener('input', drawBadge);
+    document.getElementById('locationCustom').addEventListener('input', drawBadge);
+}
+
+// Preencher o select de modelos e carregar o modelo padrão
 function setupModels() {
     const modelSelect = document.getElementById('modelSelect');
     let defaultModelUrl = null;
@@ -310,7 +373,6 @@ document.getElementById('zoomOut').addEventListener('click', function() {
 
 // Event listeners para campos de texto e controles de fonte
 document.getElementById('name').addEventListener('input', drawBadge);
-document.getElementById('location').addEventListener('input', drawBadge);
 
 // Controles de tamanho de fonte
 document.getElementById('nameSize').addEventListener('input', function() {
@@ -318,8 +380,8 @@ document.getElementById('nameSize').addEventListener('input', function() {
     drawBadge();
 });
 
-document.getElementById('roleSize').addEventListener('input', function() {
-    document.getElementById('roleSizeValue').textContent = this.value + 'px';
+document.getElementById('courseSize').addEventListener('input', function() {
+    document.getElementById('courseSizeValue').textContent = this.value + 'px';
     drawBadge();
 });
 
@@ -336,7 +398,7 @@ function updateSliderValues() {
     document.getElementById('positionYValue').textContent = document.getElementById('positionY').value;
     document.getElementById('zoomValue').textContent = document.getElementById('zoom').value + '%';
     document.getElementById('nameSizeValue').textContent = document.getElementById('nameSize').value + 'px';
-    document.getElementById('roleSizeValue').textContent = document.getElementById('roleSize').value + 'px';
+    document.getElementById('courseSizeValue').textContent = document.getElementById('courseSize').value + 'px';
     document.getElementById('locationSizeValue').textContent = document.getElementById('locationSize').value + 'px';
 }
 
@@ -402,26 +464,34 @@ function drawBadge() {
     
     // Desenha os textos
     const name = document.getElementById('name').value;
-    const roleSelect = document.getElementById('roleSelect').value;
-    const roleCustom = document.getElementById('roleCustom').value;
-    const role = roleSelect === 'custom' ? roleCustom : roleSelect;
-    const location = document.getElementById('location').value;
+    const courseSelect = document.getElementById('courseSelect').value;
+    const courseCustom = document.getElementById('courseCustom').value;
+    const course = courseSelect === 'custom' ? courseCustom : courseSelect;
+    
+    const locationSelect = document.getElementById('locationSelect').value;
+    const locationCustom = document.getElementById('locationCustom').value;
+    const location = locationSelect === 'custom' ? locationCustom : locationSelect;
     
     const nameSize = parseInt(document.getElementById('nameSize').value);
-    const roleSize = parseInt(document.getElementById('roleSize').value);
+    const courseSize = parseInt(document.getElementById('courseSize').value);
     const locationSize = parseInt(document.getElementById('locationSize').value);
     
     ctx.fillStyle = '#1e3a8a';
     ctx.textAlign = 'center';
+
+    // Y-coordinates adjusted to move text up
+    const nameY = 240; 
+    const courseY = 265; 
+    const locationY = 290;
     
     ctx.font = `bold ${nameSize}px Arial, sans-serif`;
-    ctx.fillText(name, (canvas.width / SCALE_FACTOR) / 2, 280);
+    ctx.fillText(name, (canvas.width / SCALE_FACTOR) / 2, nameY);
     
-    ctx.font = `${roleSize}px Arial, sans-serif`;
-    ctx.fillText(role, (canvas.width / SCALE_FACTOR) / 2, 305);
+    ctx.font = `${courseSize}px Arial, sans-serif`;
+    ctx.fillText(course, (canvas.width / SCALE_FACTOR) / 2, courseY);
     
     ctx.font = `${locationSize}px Arial, sans-serif`;
-    ctx.fillText(location, (canvas.width / SCALE_FACTOR) / 2, 330);
+    ctx.fillText(location, (canvas.width / SCALE_FACTOR) / 2, locationY);
 
     console.log('Desenho do crachá concluído.');
 }
@@ -530,26 +600,34 @@ function createDownloadLink() {
             printCtx.filter = 'none';
 
             const name = document.getElementById('name').value;
-            const roleSelect = document.getElementById('roleSelect').value;
-            const roleCustom = document.getElementById('roleCustom').value;
-            const role = roleSelect === 'custom' ? roleCustom : roleSelect;
-            const location = document.getElementById('location').value;
+            const courseSelect = document.getElementById('courseSelect').value;
+            const courseCustom = document.getElementById('courseCustom').value;
+            const course = courseSelect === 'custom' ? courseCustom : courseSelect;
             
+            const locationSelect = document.getElementById('locationSelect').value;
+            const locationCustom = document.getElementById('locationCustom').value;
+            const location = locationSelect === 'custom' ? locationCustom : locationSelect;
+
             const nameSize = parseInt(document.getElementById('nameSize').value) * (PRINT_WIDTH_PX / (canvas.width / SCALE_FACTOR));
-            const roleSize = parseInt(document.getElementById('roleSize').value) * (PRINT_WIDTH_PX / (canvas.width / SCALE_FACTOR));
+            const courseSize = parseInt(document.getElementById('courseSize').value) * (PRINT_WIDTH_PX / (canvas.width / SCALE_FACTOR));
             const locationSize = parseInt(document.getElementById('locationSize').value) * (PRINT_HEIGHT_PX / (canvas.height / SCALE_FACTOR));
             
             printCtx.fillStyle = '#1e3a8a';
             printCtx.textAlign = 'center';
             
-            printCtx.font = `bold ${nameSize}px Arial, sans-serif`;
-            printCtx.fillText(name, PRINT_WIDTH_PX / 2, 280 * (PRINT_HEIGHT_PX / (canvas.height / SCALE_FACTOR)));
+            // New Y-coordinates for print
+            const namePrintY = 240 * (PRINT_HEIGHT_PX / (canvas.height / SCALE_FACTOR));
+            const coursePrintY = 265 * (PRINT_HEIGHT_PX / (canvas.height / SCALE_FACTOR));
+            const locationPrintY = 290 * (PRINT_HEIGHT_PX / (canvas.height / SCALE_FACTOR));
             
-            printCtx.font = `${roleSize}px Arial, sans-serif`;
-            printCtx.fillText(role, PRINT_WIDTH_PX / 2, 305 * (PRINT_HEIGHT_PX / (canvas.height / SCALE_FACTOR)));
+            printCtx.font = `bold ${nameSize}px Arial, sans-serif`;
+            printCtx.fillText(name, PRINT_WIDTH_PX / 2, namePrintY);
+            
+            printCtx.font = `${courseSize}px Arial, sans-serif`;
+            printCtx.fillText(course, PRINT_WIDTH_PX / 2, coursePrintY);
             
             printCtx.font = `${locationSize}px Arial, sans-serif`;
-            printCtx.fillText(location, PRINT_WIDTH_PX / 2, 330 * (PRINT_HEIGHT_PX / (canvas.height / SCALE_FACTOR)));
+            printCtx.fillText(location, PRINT_WIDTH_PX / 2, locationPrintY);
 
             const dataURL = printCanvas.toDataURL('image/png');
             const downloadLink = document.getElementById('downloadLink');
@@ -560,4 +638,5 @@ function createDownloadLink() {
 
 // Inicializa a configuração dos modelos e os controles
 setupModels();
+setupDropdowns();
 updateSliderValues();
