@@ -7,6 +7,11 @@
  * Use o formato "Versão [número]: [Descrição da modificação]".
  * Mantenha a lista limitada às 4 últimas alterações para clareza e concisão.
  *
+ * Versão 3.3: Correção definitiva do posicionamento da imagem na área transparente.
+ * - Implementado clipping circular preciso para a área transparente
+ * - Correção do cálculo de escala para preencher completamente a área circular
+ * - Centralização perfeita da imagem dentro da área circular
+ * - Remoção do problema do "quadrado invisível" que limitava a exibição
  * Versão 3.2: Correção de posicionamento e arrasto da imagem.
  * - Refatoração para unificar a lógica de escala, usando as dimensões visuais (300x400) do canvas.
  * - Coordenadas da área de transparência agora são convertidas para a escala visual antes dos cálculos.
@@ -443,28 +448,45 @@ class BadgeGenerator {
         const photoAreaWidth = this.photoArea.width / this.SCALE_FACTOR;
         const photoAreaHeight = this.photoArea.height / this.SCALE_FACTOR;
         
-        // Dimensões da imagem do usuário já foram redimensionadas pelo pica.js
-        const userDrawWidth = this.userImage.width * this.imageZoom;
-        const userDrawHeight = this.userImage.height * this.imageZoom;
-        
-        // Posicionamento da imagem com base na área de transparência, na escala visual
-        const userDrawX = photoAreaX + (photoAreaWidth / 2) - (userDrawWidth / 2) + this.imagePosition.x;
-        const userDrawY = photoAreaY + (photoAreaHeight / 2) - (userDrawHeight / 2) + this.imagePosition.y;
-
+        // Salvar contexto para aplicar clipping circular
         this.ctx.save();
-        this.ctx.beginPath();
         
-        this.ctx.rect(photoAreaX, photoAreaY, photoAreaWidth, photoAreaHeight);
+        // Criar path circular para clipping (área transparente do template)
+        this.ctx.beginPath();
+        const centerX = photoAreaX + photoAreaWidth / 2;
+        const centerY = photoAreaY + photoAreaHeight / 2;
+        const radius = Math.min(photoAreaWidth, photoAreaHeight) / 2;
+        this.ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
         this.ctx.clip();
         
+        // Calcular escala para preencher completamente a área circular
+        const aspectRatio = this.userImage.width / this.userImage.height;
+        const targetSize = Math.max(photoAreaWidth, photoAreaHeight);
+        
+        let drawWidth, drawHeight;
+        if (aspectRatio > 1) {
+            // Imagem landscape - escalar pela altura
+            drawHeight = targetSize * this.imageZoom;
+            drawWidth = drawHeight * aspectRatio;
+        } else {
+            // Imagem portrait - escalar pela largura  
+            drawWidth = targetSize * this.imageZoom;
+            drawHeight = drawWidth / aspectRatio;
+        }
+        
+        // Centralizar perfeitamente na área circular com offset do usuário
+        const userDrawX = centerX - (drawWidth / 2) + this.imagePosition.x;
+        const userDrawY = centerY - (drawHeight / 2) + this.imagePosition.y;
+
         this.ctx.drawImage(
             this.userImage,
-            userDrawX, userDrawY, userDrawWidth, userDrawHeight
+            userDrawX, userDrawY, drawWidth, drawHeight
         );
         
+        // Restaurar contexto
         this.ctx.restore();
         this.ctx.filter = 'none';
-        console.log('Imagem do usuário desenhada atrás do modelo (com transparência).');
+        console.log('Imagem do usuário desenhada atrás do modelo (com transparência circular corrigida).');
     }
 
     drawUserImageInFront() {
@@ -565,28 +587,55 @@ class BadgeGenerator {
         const contrast = parseInt(document.getElementById('contrast').value);
         printCtx.filter = `brightness(${100 + brightness}%) contrast(${100 + contrast}%)`;
         
-        const photoAreaX = this.photoArea.x;
-        const photoAreaY = this.photoArea.y;
-        const photoAreaWidth = this.photoArea.width;
-        const photoAreaHeight = this.photoArea.height;
-        
-        const userDrawWidth = this.userImage.width * this.imageZoom;
-        const userDrawHeight = this.userImage.height * this.imageZoom;
-        
-        const userDrawX = (photoAreaX / this.SCALE_FACTOR) + (photoAreaWidth / this.SCALE_FACTOR / 2) - (userDrawWidth / 2) + this.imagePosition.x;
-        const userDrawY = (photoAreaY / this.SCALE_FACTOR) + (photoAreaHeight / this.SCALE_FACTOR / 2) - (userDrawHeight / 2) + this.imagePosition.y;
-        
         if (this.hasTransparency && !inFront && this.photoArea) {
+            // Aplicar o mesmo clipping circular para impressão
+            const photoAreaX = this.photoArea.x / this.SCALE_FACTOR;
+            const photoAreaY = this.photoArea.y / this.SCALE_FACTOR;
+            const photoAreaWidth = this.photoArea.width / this.SCALE_FACTOR;
+            const photoAreaHeight = this.photoArea.height / this.SCALE_FACTOR;
+            
             printCtx.save();
             printCtx.beginPath();
-            printCtx.rect(this.photoArea.x, this.photoArea.y, this.photoArea.width, this.photoArea.height);
+            const centerX = photoAreaX + photoAreaWidth / 2;
+            const centerY = photoAreaY + photoAreaHeight / 2;
+            const radius = Math.min(photoAreaWidth, photoAreaHeight) / 2;
+            printCtx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
             printCtx.clip();
+            
+            // Calcular escala para preencher completamente a área circular
+            const aspectRatio = this.userImage.width / this.userImage.height;
+            const targetSize = Math.max(photoAreaWidth, photoAreaHeight);
+            
+            let drawWidth, drawHeight;
+            if (aspectRatio > 1) {
+                drawHeight = targetSize * this.imageZoom;
+                drawWidth = drawHeight * aspectRatio;
+            } else {
+                drawWidth = targetSize * this.imageZoom;
+                drawHeight = drawWidth / aspectRatio;
+            }
+            
+            const userDrawX = centerX - (drawWidth / 2) + this.imagePosition.x;
+            const userDrawY = centerY - (drawHeight / 2) + this.imagePosition.y;
+            
             printCtx.drawImage(
                 this.userImage,
-                userDrawX, userDrawY, userDrawWidth, userDrawHeight
+                userDrawX, userDrawY, drawWidth, drawHeight
             );
             printCtx.restore();
         } else {
+            // Desenho normal para frente ou sem transparência
+            const photoAreaX = this.photoArea ? this.photoArea.x / this.SCALE_FACTOR : 0;
+            const photoAreaY = this.photoArea ? this.photoArea.y / this.SCALE_FACTOR : 0;
+            const photoAreaWidth = this.photoArea ? this.photoArea.width / this.SCALE_FACTOR : this.canvas.width / this.SCALE_FACTOR;
+            const photoAreaHeight = this.photoArea ? this.photoArea.height / this.SCALE_FACTOR : this.canvas.height / this.SCALE_FACTOR;
+            
+            const userDrawWidth = this.userImage.width * this.imageZoom;
+            const userDrawHeight = this.userImage.height * this.imageZoom;
+            
+            const userDrawX = (photoAreaX + photoAreaWidth / 2) - (userDrawWidth / 2) + this.imagePosition.x;
+            const userDrawY = (photoAreaY + photoAreaHeight / 2) - (userDrawHeight / 2) + this.imagePosition.y;
+            
             printCtx.drawImage(
                 this.userImage,
                 userDrawX, userDrawY, userDrawWidth, userDrawHeight
