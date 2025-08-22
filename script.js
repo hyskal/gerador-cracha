@@ -7,6 +7,7 @@
  * Use o formato "Versão [número]: [Descrição da modificação]".
  * Mantenha a lista limitada às 4 últimas alterações para clareza e concisão.
  *
+ * Versão 2.2: Refatoração para buscar dados de um arquivo JSON externo.
  * Versão 2.1: Separação do código JavaScript principal e eventos.
  * Versão 2.0: Código completamente refatorado para melhor organização e performance
  * - Correção da detecção de área transparente 
@@ -20,9 +21,10 @@ class BadgeGenerator {
     constructor() {
         this.initializeProperties();
         this.setupCanvas();
-        this.loadData();
-        this.bindEvents();
-        this.loadDefaultModel();
+        this.loadData().then(() => {
+            this.bindEvents();
+            this.loadDefaultModel();
+        });
     }
 
     initializeProperties() {
@@ -51,29 +53,9 @@ class BadgeGenerator {
         this.PRINT_WIDTH_PX = Math.round(this.PRINT_WIDTH_MM * this.PIXELS_PER_MM);
         this.PRINT_HEIGHT_PX = Math.round(this.PRINT_HEIGHT_MM * this.PIXELS_PER_MM);
         
-        // Dados
-        this.data = {
-            courses: [
-                "Técnico em Análises Clínicas",
-                "Técnico em Nutrição e Dietética", 
-                "Técnico em Serviços Jurídicos",
-                "Técnico em Informática",
-                "Técnico em Agroecologia",
-                "Técnico em Administração"
-            ],
-            locations: [
-                "HOSPITAL REGIONAL DANTAS BIÃO",
-                "VITALIA LAB"
-            ]
-        };
-        
-        // Modelos predefinidos
-        this.modelLinks = {
-            'Modelo Padrão': 'https://i.ibb.co/PZQLwy4t/cgara-transpp.png',
-            'Modelo 2': 'https://i.ibb.co/PZQLwy4t/cgara-transpp.png',
-            'Modelo 3': 'https://i.ibb.co/PZQLwy4t/cgara-transpp.png',
-            'Modelo 4': 'https://i.ibb.co/PZQLwy4t/cgara-transpp.png'
-        };
+        // Dados (agora carregados de data.json)
+        this.data = {};
+        this.modelLinks = {};
     }
 
     setupCanvas() {
@@ -90,9 +72,27 @@ class BadgeGenerator {
         this.ctx.textRenderingOptimization = 'optimizeQuality';
     }
 
-    loadData() {
-        this.setupDropdowns();
-        this.updateSliderValues();
+    async loadData() {
+        try {
+            const response = await fetch('data.json');
+            if (!response.ok) {
+                throw new Error('Erro ao carregar data.json');
+            }
+            const data = await response.json();
+            this.data.courses = data.courses;
+            this.data.locations = data.locations;
+            this.modelLinks = data.modelLinks;
+            this.setupDropdowns();
+            this.updateSliderValues();
+        } catch (error) {
+            console.error('Falha ao carregar dados:', error);
+            // Definir dados de fallback se o JSON não for carregado
+            this.data = {
+                courses: [],
+                locations: []
+            };
+            this.modelLinks = {};
+        }
     }
 
     bindEvents() {
@@ -143,20 +143,24 @@ class BadgeGenerator {
         locationSelect.innerHTML = '<option value="">Selecione um local</option>';
         
         // Preencher cursos
-        this.data.courses.forEach(course => {
-            const option = document.createElement('option');
-            option.value = course;
-            option.textContent = course;
-            courseSelect.appendChild(option);
-        });
+        if (this.data.courses) {
+            this.data.courses.forEach(course => {
+                const option = document.createElement('option');
+                option.value = course;
+                option.textContent = course;
+                courseSelect.appendChild(option);
+            });
+        }
         
         // Preencher locais
-        this.data.locations.forEach(location => {
-            const option = document.createElement('option');
-            option.value = location;
-            option.textContent = location;
-            locationSelect.appendChild(option);
-        });
+        if (this.data.locations) {
+            this.data.locations.forEach(location => {
+                const option = document.createElement('option');
+                option.value = location;
+                option.textContent = location;
+                locationSelect.appendChild(option);
+            });
+        }
         
         // Adicionar opção "Outro"
         ['courseSelect', 'locationSelect'].forEach(id => {
@@ -227,7 +231,7 @@ class BadgeGenerator {
     }
 
     async loadDefaultModel() {
-        const defaultModelUrl = Object.values(this.modelLinks)[0];
+        const defaultModelUrl = this.modelLinks['Modelo Padrão'];
         if (defaultModelUrl) {
             await this.loadModelFromUrl(defaultModelUrl);
         }
