@@ -1,15 +1,3 @@
-/**
- * CHANGELOG
- *
- * Instruções para Revisores:
- * Este bloco de comentários registra as modificações significativas do arquivo.
- * Cada nova modificação deve ser adicionada no topo da lista.
- * Use o formato "Versão [número]: [Descrição da modificação]".
- * Mantenha a lista limitada às 4 últimas alterações para clareza e concisão.
- *
- * Versão 1.1: Adicionado o arquivo JSON para listas suspensas.
- * Versão 1.0: Estrutura inicial para cursos e locais.
- */
 {
   "courses": [
     "Técnico em Análises Clínicas",
