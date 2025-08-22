@@ -1,654 +1,796 @@
 /**
- * CHANGELOG
- *
- * Instruções para Revisores:
- * Este bloco de comentários registra as modificações significativas do arquivo.
- * Cada nova modificação deve ser adicionada no topo da lista.
- * Use o formato "Versão [número]: [Descrição da modificação]".
- * Mantenha a lista limitada às 4 últimas alterações para clareza e concisão.
- */
-/* * Versão 1.1: Adicionado CHANGELOG no início do arquivo.
- * Versão 1.2: Implementada lógica para mover a foto com o mouse, adicionados JSON para listas suspensas de cursos e locais com opção "Outro (especificar)", reposicionado os campos de texto no crachá e corrigido as dimensões de impressão para 54mm x 85mm.
- * Versão 1.3: Removida a seleção de modelo padrão, o primeiro modelo agora é pré-carregado automaticamente ao iniciar a página.
- * Versão 1.4: Adicionada verificação para evitar erro de estado da imagem e ajustada a posição vertical do nome, curso e local.
- * Versão 1.5: Adicionados logs detalhados para depuração e corrigida a lógica da função getTransparentArea para garantir que a área transparente seja detectada corretamente.
+ * GERADOR DE CRACHÁ CETEP - VERSÃO OTIMIZADA
+ * 
+ * CHANGELOG:
+ * Versão 2.0: Código completamente refatorado para melhor organização e performance
+ * - Correção da detecção de área transparente 
+ * - Melhoria no sistema de arrastar imagem com mouse
+ * - Fallback para imagens sem transparência (desenha na frente)
+ * - Controles refinados e responsivos
+ * - Código mais limpo e modular
  */
 
-// Variáveis globais
-let userImage = null;
-let modelImage = null;
-let canvas = document.getElementById('canvas');
-let ctx = canvas.getContext('2d');
-let models = {}; // Objeto para armazenar a lista de modelos
-
-// Variáveis para controle da imagem e do arrasto
-let imagePosition = { x: 0, y: 0 };
-let imageZoom = 1;
-let isDragging = false;
-let startX, startY;
-let photoArea = null;
-
-// Configurações de qualidade - Padrão de crachá 54x85mm em 300 DPI
-const PRINT_WIDTH_MM = 54;
-const PRINT_HEIGHT_MM = 85;
-const DPI = 300;
-const PIXELS_PER_MM = DPI / 25.4;
-const PRINT_WIDTH_PX = Math.round(PRINT_WIDTH_MM * PIXELS_PER_MM);
-const PRINT_HEIGHT_PX = Math.round(PRINT_HEIGHT_MM * PIXELS_PER_MM);
-
-// Configurar canvas com alta resolução
-const SCALE_FACTOR = 3;
-canvas.width = 300 * SCALE_FACTOR;
-canvas.height = 400 * SCALE_FACTOR;
-canvas.style.width = '300px';
-canvas.style.height = '400px';
-
-// Configurar contexto para alta qualidade
-ctx.scale(SCALE_FACTOR, SCALE_FACTOR);
-ctx.imageSmoothingEnabled = true;
-ctx.imageSmoothingQuality = 'high';
-ctx.textRenderingOptimization = 'optimizeQuality';
-
-// --- INÍCIO: NOVAS FUNCIONALIDADES ---
-// Lista de modelos pré-definidos. O primeiro da lista será carregado por padrão.
-const modelLinks = {
-    'Modelo Padrão': 'https://i.ibb.co/PZQLwy4t/cgara-transpp.png',
-    'Modelo 2': 'https://i.ibb.co/PZQLwy4t/cgara-transpp.png',
-    'Modelo 3': 'https://i.ibb.co/PZQLwy4t/cgara-transpp.png',
-    'Modelo 4': 'https://i.ibb.co/PZQLwy4t/cgara-transpp.png'
-};
-
-// JSON para cursos e locais
-const data = {
-    "courses": [
-        "Técnico em Análises Clínicas",
-        "Técnico em Nutrição e Dietética",
-        "Técnico em Serviços Jurídicos",
-        "Técnico em Informática",
-        "Técnico em Agroecologia",
-        "Técnico em Administração"
-    ],
-    "locations": [
-        "HOSPITAL REGIONAL DANTAS BIÃO",
-        "VITALIA LAB"
-    ]
-};
-
-// Função para carregar um modelo a partir de uma URL
-function loadModelFromUrl(url) {
-    console.log('LOG: Tentando carregar modelo do crachá da URL:', url);
-    if (!url) {
-        console.error('ERRO: URL do modelo do crachá é inválida ou nula.');
-        return;
+class BadgeGenerator {
+    constructor() {
+        this.initializeProperties();
+        this.setupCanvas();
+        this.loadData();
+        this.bindEvents();
+        this.loadDefaultModel();
     }
-    
-    modelImage = new Image();
-    modelImage.crossOrigin = 'anonymous';
-    modelImage.onload = function() {
-        console.log('LOG: Modelo do crachá carregado com sucesso. Analisando área transparente...');
-        photoArea = getTransparentArea(modelImage);
-        drawBadge();
-    };
-    modelImage.onerror = function() {
-        console.error('ERRO: Falha ao carregar o modelo da URL.');
-        alert('Erro ao carregar o modelo da URL. Por favor, tente novamente ou carregue seu próprio modelo.');
-    };
-    modelImage.src = url;
-}
 
-// Função para preencher os dropdowns
-function setupDropdowns() {
-    const courseSelect = document.getElementById('courseSelect');
-    const locationSelect = document.getElementById('locationSelect');
-    
-    // Preenche o dropdown de Cursos
-    data.courses.forEach(course => {
-        const option = document.createElement('option');
-        option.value = course;
-        option.textContent = course;
-        courseSelect.appendChild(option);
-    });
-    const courseOption = document.createElement('option');
-    courseOption.value = 'custom';
-    courseOption.textContent = 'Outro (especificar)';
-    courseSelect.appendChild(courseOption);
-
-    // Preenche o dropdown de Locais
-    data.locations.forEach(location => {
-        const option = document.createElement('option');
-        option.value = location;
-        option.textContent = location;
-        locationSelect.appendChild(option);
-    });
-    const locationOption = document.createElement('option');
-    locationOption.value = 'custom';
-    locationOption.textContent = 'Outro (especificar)';
-    locationSelect.appendChild(locationOption);
-
-    // Adiciona event listeners para mostrar/esconder o campo de texto customizado
-    courseSelect.addEventListener('change', function() {
-        const customInput = document.getElementById('courseCustom');
-        customInput.style.display = this.value === 'custom' ? 'block' : 'none';
-        drawBadge();
-    });
-
-    locationSelect.addEventListener('change', function() {
-        const customInput = document.getElementById('locationCustom');
-        customInput.style.display = this.value === 'custom' ? 'block' : 'none';
-        drawBadge();
-    });
-
-    // Event listeners para os campos de texto customizados
-    document.getElementById('courseCustom').addEventListener('input', drawBadge);
-    document.getElementById('locationCustom').addEventListener('input', drawBadge);
-}
-
-// Carrega o modelo padrão ao iniciar a página
-function loadDefaultModel() {
-    const defaultModelUrl = Object.values(modelLinks)[0];
-    if (defaultModelUrl) {
-        loadModelFromUrl(defaultModelUrl);
+    initializeProperties() {
+        // Elementos DOM
+        this.canvas = document.getElementById('canvas');
+        this.ctx = this.canvas.getContext('2d');
+        
+        // Imagens
+        this.userImage = null;
+        this.modelImage = null;
+        this.photoArea = null;
+        this.hasTransparency = false;
+        
+        // Controles da imagem
+        this.imagePosition = { x: 0, y: 0 };
+        this.imageZoom = 1;
+        this.isDragging = false;
+        this.dragStart = { x: 0, y: 0 };
+        
+        // Configurações de qualidade
+        this.SCALE_FACTOR = 3;
+        this.PRINT_WIDTH_MM = 54;
+        this.PRINT_HEIGHT_MM = 85;
+        this.DPI = 300;
+        this.PIXELS_PER_MM = this.DPI / 25.4;
+        this.PRINT_WIDTH_PX = Math.round(this.PRINT_WIDTH_MM * this.PIXELS_PER_MM);
+        this.PRINT_HEIGHT_PX = Math.round(this.PRINT_HEIGHT_MM * this.PIXELS_PER_MM);
+        
+        // Dados
+        this.data = {
+            courses: [
+                "Técnico em Análises Clínicas",
+                "Técnico em Nutrição e Dietética", 
+                "Técnico em Serviços Jurídicos",
+                "Técnico em Informática",
+                "Técnico em Agroecologia",
+                "Técnico em Administração"
+            ],
+            locations: [
+                "HOSPITAL REGIONAL DANTAS BIÃO",
+                "VITALIA LAB"
+            ]
+        };
+        
+        // Modelos predefinidos
+        this.modelLinks = {
+            'Modelo Padrão': 'https://i.ibb.co/PZQLwy4t/cgara-transpp.png',
+            'Modelo 2': 'https://i.ibb.co/PZQLwy4t/cgara-transpp.png',
+            'Modelo 3': 'https://i.ibb.co/PZQLwy4t/cgara-transpp.png',
+            'Modelo 4': 'https://i.ibb.co/PZQLwy4t/cgara-transpp.png'
+        };
     }
-}
-// --- FIM: NOVAS FUNCIONALIDADES ---
 
+    setupCanvas() {
+        // Configurar canvas com alta resolução
+        this.canvas.width = 300 * this.SCALE_FACTOR;
+        this.canvas.height = 400 * this.SCALE_FACTOR;
+        this.canvas.style.width = '300px';
+        this.canvas.style.height = '400px';
+        
+        // Configurar contexto para alta qualidade
+        this.ctx.scale(this.SCALE_FACTOR, this.SCALE_FACTOR);
+        this.ctx.imageSmoothingEnabled = true;
+        this.ctx.imageSmoothingQuality = 'high';
+        this.ctx.textRenderingOptimization = 'optimizeQuality';
+    }
 
-// Event Listeners para upload de arquivos
-document.getElementById('uploadModel').addEventListener('change', function(event) {
-    console.log('LOG: Upload de modelo de crachá iniciado.');
-    const file = event.target.files[0];
-    if (file) {
+    loadData() {
+        this.setupDropdowns();
+        this.updateSliderValues();
+    }
+
+    bindEvents() {
+        // Upload de arquivos
+        document.getElementById('uploadModel').addEventListener('change', (e) => this.handleModelUpload(e));
+        document.getElementById('uploadImage').addEventListener('change', (e) => this.handleImageUpload(e));
+        
+        // Controles de ajuste
+        document.getElementById('brightness').addEventListener('input', (e) => this.updateControl(e, 'brightnessValue'));
+        document.getElementById('contrast').addEventListener('input', (e) => this.updateControl(e, 'contrastValue'));
+        document.getElementById('positionX').addEventListener('input', (e) => this.updatePosition(e, 'x'));
+        document.getElementById('positionY').addEventListener('input', (e) => this.updatePosition(e, 'y'));
+        document.getElementById('zoom').addEventListener('input', (e) => this.updateZoom(e));
+        
+        // Botões de zoom
+        document.getElementById('zoomIn').addEventListener('click', () => this.adjustZoom(10));
+        document.getElementById('zoomOut').addEventListener('click', () => this.adjustZoom(-10));
+        
+        // Controles de texto
+        document.getElementById('name').addEventListener('input', () => this.drawBadge());
+        document.getElementById('nameSize').addEventListener('input', (e) => this.updateControl(e, 'nameSizeValue', 'px'));
+        document.getElementById('courseSize').addEventListener('input', (e) => this.updateControl(e, 'courseSizeValue', 'px'));
+        document.getElementById('locationSize').addEventListener('input', (e) => this.updateControl(e, 'locationSizeValue', 'px'));
+        
+        // Dropdowns
+        document.getElementById('courseSelect').addEventListener('change', () => this.toggleCustomInput('course'));
+        document.getElementById('locationSelect').addEventListener('change', () => this.toggleCustomInput('location'));
+        document.getElementById('courseCustom').addEventListener('input', () => this.drawBadge());
+        document.getElementById('locationCustom').addEventListener('input', () => this.drawBadge());
+        
+        // Mouse events para arrastar
+        this.canvas.addEventListener('mousedown', (e) => this.startDrag(e));
+        this.canvas.addEventListener('mousemove', (e) => this.handleDrag(e));
+        this.canvas.addEventListener('mouseup', () => this.endDrag());
+        this.canvas.addEventListener('mouseleave', () => this.endDrag());
+        
+        // Botões de ação
+        document.getElementById('generateCard').addEventListener('click', () => this.generateCard());
+        document.getElementById('printCard').addEventListener('click', () => this.printCard());
+    }
+
+    setupDropdowns() {
+        const courseSelect = document.getElementById('courseSelect');
+        const locationSelect = document.getElementById('locationSelect');
+        
+        // Limpar dropdowns
+        courseSelect.innerHTML = '';
+        locationSelect.innerHTML = '';
+        
+        // Preencher cursos
+        this.data.courses.forEach(course => {
+            const option = document.createElement('option');
+            option.value = course;
+            option.textContent = course;
+            courseSelect.appendChild(option);
+        });
+        
+        // Preencher locais
+        this.data.locations.forEach(location => {
+            const option = document.createElement('option');
+            option.value = location;
+            option.textContent = location;
+            locationSelect.appendChild(option);
+        });
+        
+        // Adicionar opção "Outro"
+        ['courseSelect', 'locationSelect'].forEach(id => {
+            const select = document.getElementById(id);
+            const option = document.createElement('option');
+            option.value = 'custom';
+            option.textContent = 'Outro (especificar)';
+            select.appendChild(option);
+        });
+    }
+
+    toggleCustomInput(type) {
+        const select = document.getElementById(`${type}Select`);
+        const customInput = document.getElementById(`${type}Custom`);
+        
+        customInput.style.display = select.value === 'custom' ? 'block' : 'none';
+        this.drawBadge();
+    }
+
+    updateControl(event, valueId, suffix = '') {
+        const value = event.target.value;
+        document.getElementById(valueId).textContent = value + suffix;
+        this.drawBadge();
+    }
+
+    updatePosition(event, axis) {
+        this.imagePosition[axis] = parseInt(event.target.value);
+        document.getElementById(`position${axis.toUpperCase()}Value`).textContent = event.target.value;
+        this.drawBadge();
+    }
+
+    updateZoom(event) {
+        this.imageZoom = parseInt(event.target.value) / 100;
+        document.getElementById('zoomValue').textContent = event.target.value + '%';
+        this.drawBadge();
+    }
+
+    adjustZoom(delta) {
+        const zoomSlider = document.getElementById('zoom');
+        const currentValue = parseInt(zoomSlider.value);
+        const newValue = Math.max(50, Math.min(200, currentValue + delta));
+        
+        zoomSlider.value = newValue;
+        this.imageZoom = newValue / 100;
+        document.getElementById('zoomValue').textContent = newValue + '%';
+        this.drawBadge();
+    }
+
+    updateSliderValues() {
+        const sliders = [
+            { id: 'brightness', valueId: 'brightnessValue' },
+            { id: 'contrast', valueId: 'contrastValue' },
+            { id: 'positionX', valueId: 'positionXValue' },
+            { id: 'positionY', valueId: 'positionYValue' },
+            { id: 'zoom', valueId: 'zoomValue', suffix: '%' },
+            { id: 'nameSize', valueId: 'nameSizeValue', suffix: 'px' },
+            { id: 'courseSize', valueId: 'courseSizeValue', suffix: 'px' },
+            { id: 'locationSize', valueId: 'locationSizeValue', suffix: 'px' }
+        ];
+        
+        sliders.forEach(slider => {
+            const element = document.getElementById(slider.id);
+            const valueElement = document.getElementById(slider.valueId);
+            if (element && valueElement) {
+                valueElement.textContent = element.value + (slider.suffix || '');
+            }
+        });
+    }
+
+    async loadDefaultModel() {
+        const defaultModelUrl = Object.values(this.modelLinks)[0];
+        if (defaultModelUrl) {
+            await this.loadModelFromUrl(defaultModelUrl);
+        }
+    }
+
+    loadModelFromUrl(url) {
+        return new Promise((resolve, reject) => {
+            console.log('Carregando modelo:', url);
+            
+            this.modelImage = new Image();
+            this.modelImage.crossOrigin = 'anonymous';
+            
+            this.modelImage.onload = () => {
+                console.log('Modelo carregado com sucesso');
+                this.analyzeTransparency();
+                this.drawBadge();
+                resolve();
+            };
+            
+            this.modelImage.onerror = () => {
+                console.error('Erro ao carregar modelo');
+                reject();
+            };
+            
+            this.modelImage.src = url;
+        });
+    }
+
+    handleModelUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
         if (file.type !== 'image/png') {
-            alert('Por favor, selecione apenas arquivos PNG com transparência.');
+            alert('Por favor, selecione apenas arquivos PNG.');
             return;
         }
         
         const reader = new FileReader();
-        reader.onload = function(e) {
-            modelImage = new Image();
-            modelImage.onload = function() {
-                console.log('LOG: Modelo do crachá local carregado com sucesso. Analisando área transparente...');
-                photoArea = getTransparentArea(modelImage);
-                drawBadge();
+        reader.onload = (e) => {
+            this.modelImage = new Image();
+            this.modelImage.onload = () => {
+                console.log('Modelo local carregado');
+                this.analyzeTransparency();
+                this.drawBadge();
             };
-            modelImage.src = e.target.result;
+            this.modelImage.src = e.target.result;
         };
         reader.readAsDataURL(file);
     }
-});
 
-document.getElementById('uploadImage').addEventListener('change', function(event) {
-    console.log('LOG: Upload de imagem do usuário iniciado.');
-    const file = event.target.files[0];
-    if (file) {
-        // Alerta para carregar o modelo antes da foto do usuário
-        if (!modelImage) {
-            console.warn('AVISO: Tentativa de carregar foto do usuário antes do modelo do crachá.');
-            alert('Por favor, carregue ou selecione um modelo de crachá primeiro.');
-            event.target.value = ''; // Limpa o campo de arquivo
+    handleImageUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        if (!this.modelImage) {
+            alert('Por favor, carregue um modelo primeiro.');
+            event.target.value = '';
             return;
         }
-
+        
         const reader = new FileReader();
-        reader.onload = function(e) {
-            userImage = new Image();
-            userImage.onload = function() {
-                console.log('LOG: Imagem do usuário carregada com sucesso. Processando a imagem...');
-                processUserImage();
+        reader.onload = (e) => {
+            this.userImage = new Image();
+            this.userImage.onload = () => {
+                console.log('Imagem do usuário carregada');
+                this.processUserImage();
             };
-            userImage.src = e.target.result;
+            this.userImage.src = e.target.result;
         };
         reader.readAsDataURL(file);
     }
-});
 
-// Função para processar a imagem do usuário (aplica nitidez)
-function processUserImage() {
-    console.log('LOG: Iniciando processamento da imagem do usuário.');
-    const tempCanvas = document.createElement('canvas');
-    const tempCtx = tempCanvas.getContext('2d');
-    
-    const aspectRatio = userImage.width / userImage.height;
-    const targetWidth = 800;
-    const targetHeight = Math.round(targetWidth / aspectRatio);
-    
-    tempCanvas.width = targetWidth;
-    tempCanvas.height = targetHeight;
-    
-    tempCtx.imageSmoothingEnabled = true;
-    tempCtx.imageSmoothingQuality = 'high';
-    tempCtx.drawImage(userImage, 0, 0, targetWidth, targetHeight);
-    
-    const imageData = tempCtx.getImageData(0, 0, targetWidth, targetHeight);
-    const sharpened = applySharpenFilter(imageData);
-    tempCtx.putImageData(sharpened, 0, 0);
-    
-    const processedImage = new Image();
-    processedImage.onload = function() {
-        console.log('LOG: Processamento da imagem concluído. Atualizando imagem do usuário.');
-        userImage = processedImage;
-        resetImageControls();
-        drawBadge();
-    };
-    processedImage.src = tempCanvas.toDataURL('image/png', 0.95);
-}
+    processUserImage() {
+        // Aplicar filtro de nitidez
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d');
+        
+        const aspectRatio = this.userImage.width / this.userImage.height;
+        const targetWidth = 800;
+        const targetHeight = Math.round(targetWidth / aspectRatio);
+        
+        tempCanvas.width = targetWidth;
+        tempCanvas.height = targetHeight;
+        
+        tempCtx.imageSmoothingEnabled = true;
+        tempCtx.imageSmoothingQuality = 'high';
+        tempCtx.drawImage(this.userImage, 0, 0, targetWidth, targetHeight);
+        
+        // Aplicar filtro de nitidez
+        const imageData = tempCtx.getImageData(0, 0, targetWidth, targetHeight);
+        const sharpened = this.applySharpenFilter(imageData);
+        tempCtx.putImageData(sharpened, 0, 0);
+        
+        const processedImage = new Image();
+        processedImage.onload = () => {
+            this.userImage = processedImage;
+            this.resetImageControls();
+            this.drawBadge();
+        };
+        processedImage.src = tempCanvas.toDataURL('image/png', 0.95);
+    }
 
-// Função de filtro de nitidez
-function applySharpenFilter(imageData) {
-    // ... (código da função applySharpenFilter)
-    const data = imageData.data;
-    const width = imageData.width;
-    const height = imageData.height;
-    const output = new ImageData(width, height);
-    const outputData = output.data;
-    
-    const kernel = [0, -0.3, 0, -0.3, 2.2, -0.3, 0, -0.3, 0];
-    
-    for (let y = 1; y < height - 1; y++) {
-        for (let x = 1; x < width - 1; x++) {
-            for (let c = 0; c < 3; c++) {
-                let sum = 0;
-                for (let ky = -1; ky <= 1; ky++) {
-                    for (let kx = -1; kx <= 1; kx++) {
-                        const pixelIndex = ((y + ky) * width + (x + kx)) * 4 + c;
-                        const kernelIndex = (ky + 1) * 3 + (kx + 1);
-                        sum += data[pixelIndex] * kernel[kernelIndex];
+    applySharpenFilter(imageData) {
+        const data = imageData.data;
+        const width = imageData.width;
+        const height = imageData.height;
+        const output = new ImageData(width, height);
+        const outputData = output.data;
+        
+        const kernel = [0, -0.3, 0, -0.3, 2.2, -0.3, 0, -0.3, 0];
+        
+        for (let y = 1; y < height - 1; y++) {
+            for (let x = 1; x < width - 1; x++) {
+                for (let c = 0; c < 3; c++) {
+                    let sum = 0;
+                    for (let ky = -1; ky <= 1; ky++) {
+                        for (let kx = -1; kx <= 1; kx++) {
+                            const pixelIndex = ((y + ky) * width + (x + kx)) * 4 + c;
+                            const kernelIndex = (ky + 1) * 3 + (kx + 1);
+                            sum += data[pixelIndex] * kernel[kernelIndex];
+                        }
+                    }
+                    const outputIndex = (y * width + x) * 4 + c;
+                    outputData[outputIndex] = Math.min(255, Math.max(0, sum));
+                }
+                const alphaIndex = (y * width + x) * 4 + 3;
+                outputData[alphaIndex] = data[alphaIndex];
+            }
+        }
+        return output;
+    }
+
+    analyzeTransparency() {
+        if (!this.modelImage) return;
+        
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCanvas.width = this.modelImage.width;
+        tempCanvas.height = this.modelImage.height;
+        tempCtx.drawImage(this.modelImage, 0, 0);
+        
+        try {
+            const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+            const data = imageData.data;
+            
+            let minX = tempCanvas.width, minY = tempCanvas.height;
+            let maxX = 0, maxY = 0;
+            let transparentPixels = 0;
+            
+            for (let y = 0; y < tempCanvas.height; y++) {
+                for (let x = 0; x < tempCanvas.width; x++) {
+                    const alpha = data[((y * tempCanvas.width) + x) * 4 + 3];
+                    if (alpha < 128) { // Considera pixels semi-transparentes também
+                        transparentPixels++;
+                        if (x < minX) minX = x;
+                        if (y < minY) minY = y;
+                        if (x > maxX) maxX = x;
+                        if (y > maxY) maxY = y;
                     }
                 }
-                const outputIndex = ((y * width + x) * 4) + c; // Corrigido aqui
-                outputData[outputIndex] = Math.min(255, Math.max(0, sum));
             }
-            const alphaIndex = (y * width + x) * 4 + 3;
-            outputData[alphaIndex] = data[alphaIndex];
+            
+            if (transparentPixels > 100) { // Área transparente significativa
+                this.hasTransparency = true;
+                this.photoArea = {
+                    x: minX,
+                    y: minY,
+                    width: maxX - minX,
+                    height: maxY - minY
+                };
+                console.log('Área transparente detectada:', this.photoArea);
+            } else {
+                this.hasTransparency = false;
+                this.photoArea = null;
+                console.log('Sem transparência - imagem será desenhada na frente');
+            }
+        } catch (error) {
+            console.warn('Erro ao analisar transparência:', error);
+            this.hasTransparency = false;
+            this.photoArea = null;
         }
     }
-    return output;
-}
 
-// Resetar controles de imagem
-function resetImageControls() {
-    imagePosition = { x: 0, y: 0 };
-    imageZoom = 1;
-    document.getElementById('positionX').value = 0;
-    document.getElementById('positionY').value = 0;
-    document.getElementById('zoom').value = 100;
-    updateSliderValues();
-}
-
-// Função para encontrar a área transparente no modelo
-function getTransparentArea(image) {
-    console.log('LOG: Buscando área transparente no modelo...');
-    const tempCanvas = document.createElement('canvas');
-    const tempCtx = tempCanvas.getContext('2d');
-    tempCanvas.width = image.width;
-    tempCanvas.height = image.height;
-    tempCtx.drawImage(image, 0, 0);
-    
-    const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
-    const data = imageData.data;
-    
-    let minX = tempCanvas.width, minY = tempCanvas.height;
-    let maxX = 0, maxY = 0;
-    let foundTransparent = false;
-    
-    for (let y = 0; y < tempCanvas.height; y++) {
-        for (let x = 0; x < tempCanvas.width; x++) {
-            const alpha = data[((y * tempCanvas.width) + x) * 4 + 3];
-            if (alpha === 0) {
-                foundTransparent = true;
-                if (x < minX) minX = x;
-                if (y < minY) minY = y;
-                if (x > maxX) maxX = x;
-                if (y > maxY) maxY = y;
-            }
-        }
-    }
-    
-    if (!foundTransparent) {
-        console.error('ERRO: Nenhuma área transparente detectada no modelo. Certifique-se de que o arquivo é um PNG com transparência.');
-        return null; // Retorna null se não encontrar
-    }
-
-    const photoArea = {
-        x: minX,
-        y: minY,
-        width: maxX - minX,
-        height: maxY - minY
-    };
-    
-    console.log('LOG: Área transparente detectada:', photoArea);
-    return photoArea;
-}
-
-// Event Listeners para controles
-document.getElementById('brightness').addEventListener('input', function() {
-    document.getElementById('brightnessValue').textContent = this.value;
-    drawBadge();
-});
-
-document.getElementById('contrast').addEventListener('input', function() {
-    document.getElementById('contrastValue').textContent = this.value;
-    drawBadge();
-});
-
-document.getElementById('positionX').addEventListener('input', function() {
-    imagePosition.x = parseInt(this.value);
-    document.getElementById('positionXValue').textContent = this.value;
-    drawBadge();
-});
-
-document.getElementById('positionY').addEventListener('input', function() {
-    imagePosition.y = parseInt(this.value);
-    document.getElementById('positionYValue').textContent = this.value;
-    drawBadge();
-});
-
-document.getElementById('zoom').addEventListener('input', function() {
-    imageZoom = parseInt(this.value) / 100;
-    document.getElementById('zoomValue').textContent = this.value + '%';
-    drawBadge();
-});
-
-// Botões de zoom
-document.getElementById('zoomIn').addEventListener('click', function() {
-    const zoomSlider = document.getElementById('zoom');
-    const currentValue = parseInt(zoomSlider.value);
-    const newValue = Math.min(200, currentValue + 10);
-    zoomSlider.value = newValue;
-    imageZoom = newValue / 100;
-    document.getElementById('zoomValue').textContent = newValue + '%';
-    drawBadge();
-});
-
-document.getElementById('zoomOut').addEventListener('click', function() {
-    const zoomSlider = document.getElementById('zoom');
-    const currentValue = parseInt(zoomSlider.value);
-    const newValue = Math.max(50, currentValue - 10);
-    zoomSlider.value = newValue;
-    imageZoom = newValue / 100;
-    document.getElementById('zoomValue').textContent = newValue + '%';
-    drawBadge();
-});
-
-// Event listeners para campos de texto e controles de fonte
-document.getElementById('name').addEventListener('input', drawBadge);
-
-// Controles de tamanho de fonte
-document.getElementById('nameSize').addEventListener('input', function() {
-    document.getElementById('nameSizeValue').textContent = this.value + 'px';
-    drawBadge();
-});
-
-document.getElementById('courseSize').addEventListener('input', function() {
-    document.getElementById('courseSizeValue').textContent = this.value + 'px';
-    drawBadge();
-});
-
-document.getElementById('locationSize').addEventListener('input', function() {
-    document.getElementById('locationSizeValue').textContent = this.value + 'px';
-    drawBadge();
-});
-
-// Atualizar valores dos sliders
-function updateSliderValues() {
-    document.getElementById('brightnessValue').textContent = document.getElementById('brightness').value;
-    document.getElementById('contrastValue').textContent = document.getElementById('contrast').value;
-    document.getElementById('positionXValue').textContent = document.getElementById('positionX').value;
-    document.getElementById('positionYValue').textContent = document.getElementById('positionY').value;
-    document.getElementById('zoomValue').textContent = document.getElementById('zoom').value + '%';
-    document.getElementById('nameSizeValue').textContent = document.getElementById('nameSize').value + 'px';
-    document.getElementById('courseSizeValue').textContent = document.getElementById('courseSize').value + 'px';
-    document.getElementById('locationSizeValue').textContent = document.getElementById('locationSize').value + 'px';
-}
-
-// Função principal para desenhar o crachá
-function drawBadge() {
-    console.log('LOG: Iniciando o desenho do crachá...');
-    ctx.clearRect(0, 0, canvas.width / SCALE_FACTOR, canvas.height / SCALE_FACTOR);
-
-    // Adiciona a verificação de estado da imagem
-    if (!modelImage || !modelImage.complete || modelImage.naturalWidth === 0) {
-        console.log('LOG: Modelo do crachá não está disponível ou não foi carregado completamente.');
-        return;
-    }
-
-    // Desenha a foto do usuário se existir e a área transparente tiver sido detectada
-    if (userImage && photoArea) {
-        console.log('LOG: Desenhando imagem do usuário. Posição:', imagePosition, 'Zoom:', imageZoom);
-        console.log('LOG: Área da foto detectada para desenho:', photoArea);
-        ctx.filter = `brightness(${100 + parseInt(document.getElementById('brightness').value)}%) contrast(${100 + parseInt(document.getElementById('contrast').value)}%)`;
+    resetImageControls() {
+        this.imagePosition = { x: 0, y: 0 };
+        this.imageZoom = 1;
         
-        // --- INÍCIO: LÓGICA DE DESENHO MELHORADA ---
-        const userAspect = userImage.width / userImage.height;
-        const photoAspect = photoArea.width / photoArea.height;
-        let imageDrawWidth, imageDrawHeight;
+        document.getElementById('positionX').value = 0;
+        document.getElementById('positionY').value = 0;
+        document.getElementById('zoom').value = 100;
+        
+        this.updateSliderValues();
+    }
 
+    startDrag(event) {
+        if (!this.userImage) return;
+        
+        const rect = this.canvas.getBoundingClientRect();
+        const mouseX = ((event.clientX - rect.left) / rect.width) * (this.canvas.width / this.SCALE_FACTOR);
+        const mouseY = ((event.clientY - rect.top) / rect.height) * (this.canvas.height / this.SCALE_FACTOR);
+        
+        // Verificar se o clique está na área da imagem
+        let canDrag = false;
+        
+        if (this.hasTransparency && this.photoArea) {
+            // Se há transparência, verificar se está na área da foto
+            canDrag = mouseX >= this.photoArea.x && mouseX <= this.photoArea.x + this.photoArea.width &&
+                     mouseY >= this.photoArea.y && mouseY <= this.photoArea.y + this.photoArea.height;
+        } else {
+            // Se não há transparência, permitir arrastar em qualquer lugar
+            canDrag = mouseX >= 50 && mouseX <= this.canvas.width / this.SCALE_FACTOR - 50 &&
+                     mouseY >= 50 && mouseY <= this.canvas.height / this.SCALE_FACTOR - 50;
+        }
+        
+        if (canDrag) {
+            this.isDragging = true;
+            this.dragStart = {
+                x: mouseX - this.imagePosition.x,
+                y: mouseY - this.imagePosition.y
+            };
+            this.canvas.style.cursor = 'grabbing';
+            console.log('Iniciando arrasto');
+        }
+    }
+
+    handleDrag(event) {
+        if (!this.isDragging) return;
+        
+        const rect = this.canvas.getBoundingClientRect();
+        const mouseX = ((event.clientX - rect.left) / rect.width) * (this.canvas.width / this.SCALE_FACTOR);
+        const mouseY = ((event.clientY - rect.top) / rect.height) * (this.canvas.height / this.SCALE_FACTOR);
+        
+        this.imagePosition.x = mouseX - this.dragStart.x;
+        this.imagePosition.y = mouseY - this.dragStart.y;
+        
+        // Limitar movimento dentro de bounds razoáveis
+        this.imagePosition.x = Math.max(-200, Math.min(200, this.imagePosition.x));
+        this.imagePosition.y = Math.max(-200, Math.min(200, this.imagePosition.y));
+        
+        // Atualizar sliders
+        document.getElementById('positionX').value = Math.round(this.imagePosition.x);
+        document.getElementById('positionY').value = Math.round(this.imagePosition.y);
+        
+        this.updateSliderValues();
+        this.drawBadge();
+    }
+
+    endDrag() {
+        this.isDragging = false;
+        this.canvas.style.cursor = this.userImage ? 'grab' : 'default';
+    }
+
+    drawBadge() {
+        if (!this.modelImage || !this.modelImage.complete) {
+            console.log('Modelo não disponível');
+            return;
+        }
+        
+        // Limpar canvas
+        this.ctx.clearRect(0, 0, this.canvas.width / this.SCALE_FACTOR, this.canvas.height / this.SCALE_FACTOR);
+        
+        const canvasWidth = this.canvas.width / this.SCALE_FACTOR;
+        const canvasHeight = this.canvas.height / this.SCALE_FACTOR;
+        
+        if (this.userImage && this.hasTransparency && this.photoArea) {
+            // Caso 1: Há transparência - desenhar imagem atrás do modelo
+            this.drawUserImageBehind();
+            this.drawModel();
+        } else if (this.userImage && !this.hasTransparency) {
+            // Caso 2: Sem transparência - desenhar modelo primeiro, depois imagem na frente
+            this.drawModel();
+            this.drawUserImageInFront();
+        } else {
+            // Caso 3: Só modelo
+            this.drawModel();
+        }
+        
+        // Desenhar textos sempre por último
+        this.drawTexts();
+    }
+
+    drawModel() {
+        const canvasWidth = this.canvas.width / this.SCALE_FACTOR;
+        const canvasHeight = this.canvas.height / this.SCALE_FACTOR;
+        this.ctx.drawImage(this.modelImage, 0, 0, canvasWidth, canvasHeight);
+    }
+
+    drawUserImageBehind() {
+        // Aplicar filtros
+        const brightness = parseInt(document.getElementById('brightness').value);
+        const contrast = parseInt(document.getElementById('contrast').value);
+        this.ctx.filter = `brightness(${100 + brightness}%) contrast(${100 + contrast}%)`;
+        
+        // Calcular dimensões mantendo proporção
+        const userAspect = this.userImage.width / this.userImage.height;
+        const photoAspect = this.photoArea.width / this.photoArea.height;
+        
+        let imageDrawWidth, imageDrawHeight;
+        
         if (userAspect > photoAspect) {
-            // A imagem do usuário é mais larga que a área da foto.
-            // A altura é ajustada para preencher a área, e a largura é escalada para manter a proporção.
-            imageDrawHeight = photoArea.height * imageZoom;
+            imageDrawHeight = this.photoArea.height * this.imageZoom;
             imageDrawWidth = imageDrawHeight * userAspect;
         } else {
-            // A imagem do usuário é mais alta ou tem a mesma proporção.
-            // A largura é ajustada para preencher a área, e a altura é escalada para manter a proporção.
-            imageDrawWidth = photoArea.width * imageZoom;
+            imageDrawWidth = this.photoArea.width * this.imageZoom;
             imageDrawHeight = imageDrawWidth / userAspect;
         }
-
-        // Centraliza a imagem antes de aplicar o posicionamento manual do usuário
-        const imageDrawX = photoArea.x + imagePosition.x + (photoArea.width - imageDrawWidth) / 2;
-        const imageDrawY = photoArea.y + imagePosition.y + (photoArea.height - imageDrawHeight) / 2;
-        // --- FIM: LÓGICA DE DESENHO MELHORADA ---
         
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(photoArea.x, photoArea.y, photoArea.width, photoArea.height);
-        ctx.clip();
-        ctx.drawImage(userImage, 
-                      0, 
-                      0, 
-                      userImage.width, 
-                      userImage.height,
-                      imageDrawX, 
-                      imageDrawY, 
-                      imageDrawWidth, 
-                      imageDrawHeight);
-        ctx.restore();
+        // Posicionamento centralizado + ajuste manual
+        const imageDrawX = this.photoArea.x + this.imagePosition.x + (this.photoArea.width - imageDrawWidth) / 2;
+        const imageDrawY = this.photoArea.y + this.imagePosition.y + (this.photoArea.height - imageDrawHeight) / 2;
         
-        ctx.filter = 'none';
-    } else {
-        console.log('AVISO: Não foi possível desenhar a imagem do usuário. Certifique-se de que o modelo do crachá e a imagem do usuário foram carregados e que a área transparente foi detectada.');
+        // Clipar para área transparente
+        this.ctx.save();
+        this.ctx.beginPath();
+        this.ctx.rect(this.photoArea.x, this.photoArea.y, this.photoArea.width, this.photoArea.height);
+        this.ctx.clip();
+        
+        this.ctx.drawImage(
+            this.userImage,
+            0, 0, this.userImage.width, this.userImage.height,
+            imageDrawX, imageDrawY, imageDrawWidth, imageDrawHeight
+        );
+        
+        this.ctx.restore();
+        this.ctx.filter = 'none';
     }
 
-    // Desenha o modelo por cima da foto
-    console.log('LOG: Desenhando modelo do crachá.');
-    ctx.drawImage(modelImage, 0, 0, canvas.width / SCALE_FACTOR, canvas.height / SCALE_FACTOR);
-    
-    // Desenha os textos
-    const name = document.getElementById('name').value;
-    const courseSelect = document.getElementById('courseSelect').value;
-    const courseCustom = document.getElementById('courseCustom').value;
-    const course = courseSelect === 'custom' ? courseCustom : courseSelect;
-    
-    const locationSelect = document.getElementById('locationSelect').value;
-    const locationCustom = document.getElementById('locationCustom').value;
-    const location = locationSelect === 'custom' ? locationCustom : locationSelect;
-    
-    const nameSize = parseInt(document.getElementById('nameSize').value);
-    const courseSize = parseInt(document.getElementById('courseSize').value);
-    const locationSize = parseInt(document.getElementById('locationSize').value);
-    
-    ctx.fillStyle = '#1e3a8a';
-    ctx.textAlign = 'center';
-
-    // Ajuste das coordenadas Y conforme solicitado
-    const nameY = 305; 
-    const courseY = 320; 
-    const locationY = 335;
-    
-    ctx.font = `bold ${nameSize}px Arial, sans-serif`;
-    ctx.fillText(name, (canvas.width / SCALE_FACTOR) / 2, nameY);
-    
-    ctx.font = `${courseSize}px Arial, sans-serif`;
-    ctx.fillText(course, (canvas.width / SCALE_FACTOR) / 2, courseY);
-    
-    ctx.font = `${locationSize}px Arial, sans-serif`;
-    ctx.fillText(location, (canvas.width / SCALE_FACTOR) / 2, locationY);
-
-    console.log('LOG: Desenho do crachá concluído.');
-}
-
-// Event Listeners para arrastar a imagem
-canvas.addEventListener('mousedown', function(e) {
-    const rect = canvas.getBoundingClientRect();
-    const mouseX = ((e.clientX - rect.left) / rect.width) * (canvas.width / SCALE_FACTOR);
-    const mouseY = ((e.clientY - rect.top) / rect.height) * (canvas.height / SCALE_FACTOR);
-
-    if (photoArea && mouseX >= photoArea.x && mouseX <= photoArea.x + photoArea.width &&
-        mouseY >= photoArea.y && mouseY <= photoArea.y + photoArea.height) {
-        isDragging = true;
-        startX = mouseX - imagePosition.x;
-        startY = mouseY - imagePosition.y;
-        canvas.style.cursor = 'grabbing';
-        console.log('LOG: Arrastando a imagem iniciado.');
-    }
-});
-
-canvas.addEventListener('mousemove', function(e) {
-    if (isDragging) {
-        const rect = canvas.getBoundingClientRect();
-        const mouseX = ((e.clientX - rect.left) / rect.width) * (canvas.width / SCALE_FACTOR);
-        const mouseY = ((e.clientY - rect.top) / rect.height) * (canvas.height / SCALE_FACTOR);
+    drawUserImageInFront() {
+        // Aplicar filtros
+        const brightness = parseInt(document.getElementById('brightness').value);
+        const contrast = parseInt(document.getElementById('contrast').value);
+        this.ctx.filter = `brightness(${100 + brightness}%) contrast(${100 + contrast}%)`;
         
-        imagePosition.x = mouseX - startX;
-        imagePosition.y = mouseY - startY;
-
-        document.getElementById('positionX').value = Math.round(imagePosition.x);
-        document.getElementById('positionY').value = Math.round(imagePosition.y);
-        updateSliderValues();
+        const canvasWidth = this.canvas.width / this.SCALE_FACTOR;
+        const canvasHeight = this.canvas.height / this.SCALE_FACTOR;
         
-        drawBadge();
+        // Área padrão quando não há transparência (centro do canvas)
+        const defaultArea = {
+            x: canvasWidth * 0.2,
+            y: canvasHeight * 0.15,
+            width: canvasWidth * 0.6,
+            height: canvasHeight * 0.5
+        };
+        
+        const userAspect = this.userImage.width / this.userImage.height;
+        const areaAspect = defaultArea.width / defaultArea.height;
+        
+        let imageDrawWidth, imageDrawHeight;
+        
+        if (userAspect > areaAspect) {
+            imageDrawWidth = defaultArea.width * this.imageZoom;
+            imageDrawHeight = imageDrawWidth / userAspect;
+        } else {
+            imageDrawHeight = defaultArea.height * this.imageZoom;
+            imageDrawWidth = imageDrawHeight * userAspect;
+        }
+        
+        const imageDrawX = defaultArea.x + this.imagePosition.x + (defaultArea.width - imageDrawWidth) / 2;
+        const imageDrawY = defaultArea.y + this.imagePosition.y + (defaultArea.height - imageDrawHeight) / 2;
+        
+        this.ctx.drawImage(
+            this.userImage,
+            0, 0, this.userImage.width, this.userImage.height,
+            imageDrawX, imageDrawY, imageDrawWidth, imageDrawHeight
+        );
+        
+        this.ctx.filter = 'none';
     }
-});
 
-canvas.addEventListener('mouseup', function() {
-    isDragging = false;
-    canvas.style.cursor = 'grab';
-    console.log('LOG: Arrastando a imagem parado.');
-});
+    drawTexts() {
+        const name = document.getElementById('name').value;
+        const courseSelect = document.getElementById('courseSelect').value;
+        const courseCustom = document.getElementById('courseCustom').value;
+        const course = courseSelect === 'custom' ? courseCustom : courseSelect;
+        
+        const locationSelect = document.getElementById('locationSelect').value;
+        const locationCustom = document.getElementById('locationCustom').value;
+        const location = locationSelect === 'custom' ? locationCustom : locationSelect;
+        
+        const nameSize = parseInt(document.getElementById('nameSize').value);
+        const courseSize = parseInt(document.getElementById('courseSize').value);
+        const locationSize = parseInt(document.getElementById('locationSize').value);
+        
+        this.ctx.fillStyle = '#1e3a8a';
+        this.ctx.textAlign = 'center';
+        
+        const canvasWidth = this.canvas.width / this.SCALE_FACTOR;
+        const centerX = canvasWidth / 2;
+        
+        // Posições ajustadas dos textos
+        if (name) {
+            this.ctx.font = `bold ${nameSize}px Arial, sans-serif`;
+            this.ctx.fillText(name, centerX, 305);
+        }
+        
+        if (course) {
+            this.ctx.font = `${courseSize}px Arial, sans-serif`;
+            this.ctx.fillText(course, centerX, 320);
+        }
+        
+        if (location) {
+            this.ctx.font = `${locationSize}px Arial, sans-serif`;
+            this.ctx.fillText(location, centerX, 335);
+        }
+    }
 
-canvas.addEventListener('mouseleave', function() {
-    isDragging = false;
-    canvas.style.cursor = 'default';
-});
-
-// Event Listeners para gerar e imprimir
-document.getElementById('generateCard').addEventListener('click', function() {
-    console.log('LOG: Botão "Gerar Crachá" clicado.');
-    if (userImage && modelImage) {
+    generateCard() {
+        if (!this.userImage || !this.modelImage) {
+            alert('Por favor, carregue a foto e o modelo antes de gerar.');
+            return;
+        }
+        
         document.getElementById('downloadSection').style.display = 'block';
-        createDownloadLink();
-    } else {
-        alert('Por favor, carregue a foto do usuário e o modelo do crachá antes de gerar.');
+        this.createDownloadLink();
     }
-});
 
-document.getElementById('printCard').addEventListener('click', function() {
-    console.log('LOG: Botão "Imprimir" clicado.');
-    if (userImage && modelImage) {
-        drawBadge();
+    printCard() {
+        if (!this.userImage || !this.modelImage) {
+            alert('Por favor, carregue a foto e o modelo antes de imprimir.');
+            return;
+        }
+        
+        this.drawBadge();
         window.print();
-    } else {
-        alert('Por favor, carregue a foto do usuário e o modelo do crachá antes de imprimir.');
     }
-});
 
-function createDownloadLink() {
-    console.log('LOG: Criando link para download do crachá.');
-    const printCanvas = document.createElement('canvas');
-    printCanvas.width = PRINT_WIDTH_PX;
-    printCanvas.height = PRINT_HEIGHT_PX;
-    const printCtx = printCanvas.getContext('2d');
-    
-    printCtx.imageSmoothingEnabled = true;
-    printCtx.imageSmoothingQuality = 'high';
-    printCtx.filter = `brightness(${100 + parseInt(document.getElementById('brightness').value)}%) contrast(${100 + parseInt(document.getElementById('contrast').value)}%)`;
+    createDownloadLink() {
+        const printCanvas = document.createElement('canvas');
+        printCanvas.width = this.PRINT_WIDTH_PX;
+        printCanvas.height = this.PRINT_HEIGHT_PX;
+        const printCtx = printCanvas.getContext('2d');
+        
+        printCtx.imageSmoothingEnabled = true;
+        printCtx.imageSmoothingQuality = 'high';
+        
+        // Escalar para dimensões de impressão
+        const scaleX = this.PRINT_WIDTH_PX / (this.canvas.width / this.SCALE_FACTOR);
+        const scaleY = this.PRINT_HEIGHT_PX / (this.canvas.height / this.SCALE_FACTOR);
+        
+        printCtx.scale(scaleX, scaleY);
+        
+        // Reproduzir o mesmo desenho do canvas principal
+        if (this.userImage && this.hasTransparency && this.photoArea) {
+            this.drawUserImageOnPrintCanvas(printCtx);
+            printCtx.drawImage(this.modelImage, 0, 0, this.canvas.width / this.SCALE_FACTOR, this.canvas.height / this.SCALE_FACTOR);
+        } else if (this.userImage && !this.hasTransparency) {
+            printCtx.drawImage(this.modelImage, 0, 0, this.canvas.width / this.SCALE_FACTOR, this.canvas.height / this.SCALE_FACTOR);
+            this.drawUserImageOnPrintCanvas(printCtx, true);
+        } else {
+            printCtx.drawImage(this.modelImage, 0, 0, this.canvas.width / this.SCALE_FACTOR, this.canvas.height / this.SCALE_FACTOR);
+        }
+        
+        this.drawTextsOnPrintCanvas(printCtx);
+        
+        const dataURL = printCanvas.toDataURL('image/png');
+        const downloadLink = document.getElementById('downloadLink');
+        downloadLink.href = dataURL;
+    }
 
-    if (userImage && modelImage) {
-        const tempModel = new Image();
-        tempModel.src = modelImage.src;
-        tempModel.onload = function() {
-            printCtx.drawImage(tempModel, 0, 0, printCanvas.width, printCanvas.height);
+    drawUserImageOnPrintCanvas(printCtx, inFront = false) {
+        const brightness = parseInt(document.getElementById('brightness').value);
+        const contrast = parseInt(document.getElementById('contrast').value);
+        printCtx.filter = `brightness(${100 + brightness}%) contrast(${100 + contrast}%)`;
+        
+        if (this.hasTransparency && !inFront && this.photoArea) {
+            const userAspect = this.userImage.width / this.userImage.height;
+            const photoAspect = this.photoArea.width / this.photoArea.height;
             
-            const area = getTransparentArea(tempModel);
-            if (!area) {
-                console.error('ERRO: Não foi possível gerar o crachá de impressão. A área transparente do modelo não foi detectada.');
-                alert('Erro na geração do crachá para impressão. Por favor, verifique o modelo.');
-                return;
-            }
-            
-            const userAspect = userImage.width / userImage.height;
-            const photoAspect = area.width / area.height;
             let imageDrawWidth, imageDrawHeight;
             
             if (userAspect > photoAspect) {
-                imageDrawHeight = area.height * imageZoom;
+                imageDrawHeight = this.photoArea.height * this.imageZoom;
                 imageDrawWidth = imageDrawHeight * userAspect;
             } else {
-                imageDrawWidth = area.width * imageZoom;
+                imageDrawWidth = this.photoArea.width * this.imageZoom;
                 imageDrawHeight = imageDrawWidth / userAspect;
             }
-
-            const imageDrawX = (area.x + imagePosition.x) * (PRINT_WIDTH_PX / (canvas.width / SCALE_FACTOR));
-            const imageDrawY = (area.y + imagePosition.y) * (PRINT_HEIGHT_PX / (canvas.height / SCALE_FACTOR));
+            
+            const imageDrawX = this.photoArea.x + this.imagePosition.x + (this.photoArea.width - imageDrawWidth) / 2;
+            const imageDrawY = this.photoArea.y + this.imagePosition.y + (this.photoArea.height - imageDrawHeight) / 2;
             
             printCtx.save();
             printCtx.beginPath();
-            printCtx.rect(area.x, area.y, area.width, area.height);
+            printCtx.rect(this.photoArea.x, this.photoArea.y, this.photoArea.width, this.photoArea.height);
             printCtx.clip();
-            printCtx.drawImage(userImage, 0, 0, userImage.width, userImage.height, imageDrawX, imageDrawY, imageDrawWidth, imageDrawHeight);
+            
+            printCtx.drawImage(
+                this.userImage,
+                0, 0, this.userImage.width, this.userImage.height,
+                imageDrawX, imageDrawY, imageDrawWidth, imageDrawHeight
+            );
+            
             printCtx.restore();
+        } else {
+            // Desenhar na frente quando não há transparência
+            const canvasWidth = this.canvas.width / this.SCALE_FACTOR;
+            const canvasHeight = this.canvas.height / this.SCALE_FACTOR;
+            
+            const defaultArea = {
+                x: canvasWidth * 0.2,
+                y: canvasHeight * 0.15,
+                width: canvasWidth * 0.6,
+                height: canvasHeight * 0.5
+            };
+            
+            const userAspect = this.userImage.width / this.userImage.height;
+            const areaAspect = defaultArea.width / defaultArea.height;
+            
+            let imageDrawWidth, imageDrawHeight;
+            
+            if (userAspect > areaAspect) {
+                imageDrawWidth = defaultArea.width * this.imageZoom;
+                imageDrawHeight = imageDrawWidth / userAspect;
+            } else {
+                imageDrawHeight = defaultArea.height * this.imageZoom;
+                imageDrawWidth = imageDrawHeight * userAspect;
+            }
+            
+            const imageDrawX = defaultArea.x + this.imagePosition.x + (defaultArea.width - imageDrawWidth) / 2;
+            const imageDrawY = defaultArea.y + this.imagePosition.y + (defaultArea.height - imageDrawHeight) / 2;
+            
+            printCtx.drawImage(
+                this.userImage,
+                0, 0, this.userImage.width, this.userImage.height,
+                imageDrawX, imageDrawY, imageDrawWidth, imageDrawHeight
+            );
+        }
+        
+        printCtx.filter = 'none';
+    }
 
-            printCtx.filter = 'none';
-
-            const name = document.getElementById('name').value;
-            const courseSelect = document.getElementById('courseSelect').value;
-            const courseCustom = document.getElementById('courseCustom').value;
-            const course = courseSelect === 'custom' ? courseCustom : courseSelect;
-            
-            const locationSelect = document.getElementById('locationSelect').value;
-            const locationCustom = document.getElementById('locationCustom').value;
-            const location = locationSelect === 'custom' ? locationCustom : locationSelect;
-
-            const nameSize = parseInt(document.getElementById('nameSize').value) * (PRINT_WIDTH_PX / (canvas.width / SCALE_FACTOR));
-            const courseSize = parseInt(document.getElementById('courseSize').value) * (PRINT_WIDTH_PX / (canvas.width / SCALE_FACTOR));
-            const locationSize = parseInt(document.getElementById('locationSize').value) * (PRINT_HEIGHT_PX / (canvas.height / SCALE_FACTOR));
-            
-            printCtx.fillStyle = '#1e3a8a';
-            printCtx.textAlign = 'center';
-            
-            // New Y-coordinates for print
-            const namePrintY = 305 * (PRINT_HEIGHT_PX / (canvas.height / SCALE_FACTOR));
-            const coursePrintY = 320 * (PRINT_HEIGHT_PX / (canvas.height / SCALE_FACTOR));
-            const locationPrintY = 335 * (PRINT_HEIGHT_PX / (canvas.height / SCALE_FACTOR));
-            
+    drawTextsOnPrintCanvas(printCtx) {
+        const name = document.getElementById('name').value;
+        const courseSelect = document.getElementById('courseSelect').value;
+        const courseCustom = document.getElementById('courseCustom').value;
+        const course = courseSelect === 'custom' ? courseCustom : courseSelect;
+        
+        const locationSelect = document.getElementById('locationSelect').value;
+        const locationCustom = document.getElementById('locationCustom').value;
+        const location = locationSelect === 'custom' ? locationCustom : locationSelect;
+        
+        const nameSize = parseInt(document.getElementById('nameSize').value);
+        const courseSize = parseInt(document.getElementById('courseSize').value);
+        const locationSize = parseInt(document.getElementById('locationSize').value);
+        
+        printCtx.fillStyle = '#1e3a8a';
+        printCtx.textAlign = 'center';
+        
+        const canvasWidth = this.canvas.width / this.SCALE_FACTOR;
+        const centerX = canvasWidth / 2;
+        
+        if (name) {
             printCtx.font = `bold ${nameSize}px Arial, sans-serif`;
-            printCtx.fillText(name, PRINT_WIDTH_PX / 2, namePrintY);
-            
+            printCtx.fillText(name, centerX, 305);
+        }
+        
+        if (course) {
             printCtx.font = `${courseSize}px Arial, sans-serif`;
-            printCtx.fillText(course, PRINT_WIDTH_PX / 2, coursePrintY);
-            
+            printCtx.fillText(course, centerX, 320);
+        }
+        
+        if (location) {
             printCtx.font = `${locationSize}px Arial, sans-serif`;
-            printCtx.fillText(location, PRINT_WIDTH_PX / 2, locationPrintY);
-
-            const dataURL = printCanvas.toDataURL('image/png');
-            const downloadLink = document.getElementById('downloadLink');
-            downloadLink.href = dataURL;
-        };
+            printCtx.fillText(location, centerX, 335);
+        }
     }
 }
 
-// Inicializa a configuração dos dropdowns e dos controles
-setupDropdowns();
-updateSliderValues();
-loadDefaultModel();
+// Inicializar o gerador quando a página carregar
+document.addEventListener('DOMContentLoaded', () => {
+    window.badgeGenerator = new BadgeGenerator();
+});
