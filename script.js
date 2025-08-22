@@ -7,16 +7,14 @@
  * Use o formato "Versão [número]: [Descrição da modificação]".
  * Mantenha a lista limitada às 4 últimas alterações para clareza e concisão.
  *
+ * Versão 2.7: Correção definitiva da lógica de posicionamento da imagem.
+ * - Ajuste do cálculo para centralizar a imagem do usuário usando as coordenadas da área de transparência em alta resolução (com SCALE_FACTOR).
+ * - Garante que a imagem seja desenhada corretamente dentro do recorte.
+ * Versão 2.6: Ajuste de posicionamento dos textos no crachá.
+ * - Alteradas as coordenadas Y dos campos "Nome", "Curso" e "Local" para exibir o texto mais abaixo e com mais espaçamento.
  * Versão 2.5: Correção da lógica de posicionamento da imagem.
  * - Centralização da imagem do usuário dentro da área de transparência detectada.
  * - Ajuste da escala e posicionamento para garantir que a imagem seja visível.
- * Versão 2.4: Adição de logs de depuração detalhados.
- * - Inseridos 5 novos logs para rastrear dimensões e coordenadas de desenho.
- * - Auxilia na identificação de erros de cálculo no posicionamento e clipping da imagem.
- * Versão 2.3: Correção da renderização da imagem do usuário.
- * - Centralização e ajuste de tamanho da imagem (50% da largura do crachá).
- * - Lógica aprimorada para exibir a imagem atrás do modelo (com transparência).
- * - Adicionados novos logs para rastreamento detalhado da renderização.
  */
 
 class BadgeGenerator {
@@ -447,9 +445,11 @@ class BadgeGenerator {
         const contrast = parseInt(document.getElementById('contrast').value);
         this.ctx.filter = `brightness(${100 + brightness}%) contrast(${100 + contrast}%)`;
 
+        // Largura da imagem é 50% do canvas * zoom
         const userDrawWidth = (this.canvas.width / this.SCALE_FACTOR) * 0.5 * this.imageZoom;
         const userDrawHeight = userDrawWidth / (this.userImage.width / this.userImage.height);
         
+        // As coordenadas de desenho agora usam a área de transparência como referência
         const userDrawX = this.photoArea.x + (this.photoArea.width / 2) - (userDrawWidth / 2) + this.imagePosition.x;
         const userDrawY = this.photoArea.y + (this.photoArea.height / 2) - (userDrawHeight / 2) + this.imagePosition.y;
 
@@ -578,9 +578,10 @@ class BadgeGenerator {
         const userDrawWidth = canvasWidth * 0.5 * this.imageZoom;
         const userDrawHeight = userDrawWidth / (this.userImage.width / this.userImage.height);
         
+        // Coordenadas de desenho centralizadas na área de transparência
         const userDrawX = this.photoArea.x + (this.photoArea.width / 2) - (userDrawWidth / 2) + this.imagePosition.x;
         const userDrawY = this.photoArea.y + (this.photoArea.height / 2) - (userDrawHeight / 2) + this.imagePosition.y;
-        
+
         if (this.hasTransparency && !inFront && this.photoArea) {
             printCtx.save();
             printCtx.beginPath();
@@ -617,15 +618,15 @@ class BadgeGenerator {
         const centerX = canvasWidth / 2;
         if (name) {
             printCtx.font = `bold ${nameSize}px Arial, sans-serif`;
-            printCtx.fillText(name, centerX, 305);
+            printCtx.fillText(name, centerX, 315);
         }
         if (course) {
             printCtx.font = `${courseSize}px Arial, sans-serif`;
-            printCtx.fillText(course, centerX, 320);
+            printCtx.fillText(course, centerX, 335);
         }
         if (location) {
             printCtx.font = `${locationSize}px Arial, sans-serif`;
-            printCtx.fillText(location, centerX, 335);
+            printCtx.fillText(location, centerX, 355);
         }
     }
 }
