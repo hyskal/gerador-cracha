@@ -3,66 +3,110 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gerador de Crachá - CETEP</title>
+    <title>Gerador de Crachá CETEP - Versão Otimizada</title>
+    <meta name="description" content="Crie crachás personalizados do CETEP com qualidade profissional">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
-        <div class="header">
+        <header class="header">
             <h1>Gerador de Crachá CETEP</h1>
-            <p>Crie seu crachá personalizado de forma simples e moderna</p>
-        </div>
+            <p>Crie seu crachá personalizado com qualidade profissional</p>
+        </header>
 
-        <div class="upload-panel">
+        <section class="upload-panel" aria-label="Upload de arquivos">
             <div class="upload-section">
-                <h3>📄 Modelo do Crachá (PNG)</h3>
-                
+                <h3>📄 Modelo do Crachá</h3>
                 <p class="help-text">
-                    Carregue seu modelo PNG com área transparente para foto:
+                    O modelo padrão será carregado automaticamente. Você pode carregar seu próprio modelo PNG com área transparente para a foto.
                 </p>
                 <div class="file-input-wrapper">
-                    <input type="file" id="uploadModel" class="file-input" accept="image/png">
-                    <label for="uploadModel" class="file-input-button">Carregar Modelo PNG</label>
+                    <input type="file" 
+                           id="uploadModel" 
+                           class="file-input" 
+                           accept="image/png"
+                           aria-describedby="model-help">
+                    <label for="uploadModel" class="file-input-button">
+                        Carregar Modelo Personalizado
+                    </label>
                 </div>
-                
+                <div id="model-help" class="help-text">
+                    Apenas arquivos PNG com transparência são aceitos
+                </div>
             </div>
 
             <div class="upload-section">
                 <h3>📸 Foto do Usuário</h3>
+                <p class="help-text">
+                    Carregue uma foto clara e bem iluminada para o crachá.
+                </p>
                 <div class="file-input-wrapper">
-                    <input type="file" id="uploadImage" class="file-input" accept="image/*">
-                    <label for="uploadImage" class="file-input-button">Carregar Foto</label>
+                    <input type="file" 
+                           id="uploadImage" 
+                           class="file-input" 
+                           accept="image/*"
+                           aria-describedby="photo-help">
+                    <label for="uploadImage" class="file-input-button">
+                        Carregar Foto
+                    </label>
+                </div>
+                <div id="photo-help" class="help-text">
+                    Formatos aceitos: JPG, PNG, WebP, GIF
                 </div>
             </div>
-        </div>
+        </section>
 
-        <div class="canvas-container">
-            <canvas id="canvas" width="300" height="400"></canvas>
+        <section class="canvas-container" aria-label="Pré-visualização do crachá">
+            <canvas id="canvas" 
+                    width="300" 
+                    height="400"
+                    aria-label="Preview do crachá sendo criado">
+            </canvas>
+            
             <div class="zoom-controls">
-                <label>🔍 Zoom da Imagem</label>
-                <div class="zoom-buttons">
-                    <button type="button" id="zoomOut" class="zoom-btn">−</button>
-                    <input type="range" id="zoom" class="slider" min="50" max="200" value="100">
-                    <button type="button" id="zoomIn" class="zoom-btn">+</button>
-                </div>
-                <div class="slider-value" id="zoomValue">100%</div>
+                <label for="zoom">🔍 Zoom da Imagem</label>
+                <button type="button" id="zoomOut" class="zoom-btn" aria-label="Diminuir zoom">−</button>
+                <input type="range" 
+                       id="zoom" 
+                       class="slider" 
+                       min="50" 
+                       max="200" 
+                       value="100"
+                       aria-label="Controle de zoom da imagem">
+                <button type="button" id="zoomIn" class="zoom-btn" aria-label="Aumentar zoom">+</button>
+                <div class="slider-value" id="zoomValue" aria-live="polite">100%</div>
             </div>
-        </div>
+        </section>
 
-        <div class="controls-panel">
+        <section class="controls-panel" aria-label="Controles de ajuste da imagem">
             <div class="control-group">
-                <label for="brightness">Brilho</label>
+                <label for="brightness">✨ Brilho</label>
                 <div class="slider-container">
-                    <input type="range" id="brightness" class="slider" min="-50" max="50" value="0">
-                    <div class="slider-value" id="brightnessValue">0</div>
+                    <input type="range" 
+                           id="brightness" 
+                           class="slider" 
+                           min="-50" 
+                           max="50" 
+                           value="0"
+                           aria-describedby="brightness-value">
+                    <div class="slider-value" id="brightnessValue" aria-live="polite">0</div>
                 </div>
             </div>
 
             <div class="control-group">
-                <label for="contrast">Contraste</label>
+                <label for="contrast">🌓 Contraste</label>
                 <div class="slider-container">
-                    <input type="range" id="contrast" class="slider" min="-50" max="50" value="0">
-                    <div class="slider-value" id="contrastValue">0</div>
+                    <input type="range" 
+                           id="contrast" 
+                           class="slider" 
+                           min="-50" 
+                           max="50" 
+                           value="0"
+                           aria-describedby="contrast-value">
+                    <div class="slider-value" id="contrastValue" aria-live="polite">0</div>
                 </div>
             </div>
 
@@ -70,64 +114,149 @@
                 <label>🎯 Posicionamento da Imagem</label>
                 
                 <div class="sub-control">
-                    <label for="positionX" class="sub-label">Posição X (Horizontal)</label>
+                    <label for="positionX" class="sub-label">Posição Horizontal</label>
                     <div class="slider-container">
-                        <input type="range" id="positionX" class="slider" min="-100" max="100" value="0">
-                        <div class="slider-value" id="positionXValue">0</div>
+                        <input type="range" 
+                               id="positionX" 
+                               class="slider" 
+                               min="-100" 
+                               max="100" 
+                               value="0"
+                               aria-describedby="positionx-value">
+                        <div class="slider-value" id="positionXValue" aria-live="polite">0</div>
                     </div>
                 </div>
                 
                 <div class="sub-control">
-                    <label for="positionY" class="sub-label">Posição Y (Vertical)</label>
+                    <label for="positionY" class="sub-label">Posição Vertical</label>
                     <div class="slider-container">
-                        <input type="range" id="positionY" class="slider" min="-100" max="100" value="0">
-                        <div class="slider-value" id="positionYValue">0</div>
+                        <input type="range" 
+                               id="positionY" 
+                               class="slider" 
+                               min="-100" 
+                               max="100" 
+                               value="0"
+                               aria-describedby="positiony-value">
+                        <div class="slider-value" id="positionYValue" aria-live="polite">0</div>
                     </div>
                 </div>
             </div>
-        </div>
+        </section>
 
-        <div class="text-controls-panel">
+        <section class="text-controls-panel" aria-label="Informações do crachá">
             <div class="control-group">
-                <label for="name">Nome Completo</label>
-                <input type="text" id="name" class="text-input" placeholder="Digite o nome">
+                <label for="name">👤 Nome Completo</label>
+                <input type="text" 
+                       id="name" 
+                       class="text-input" 
+                       placeholder="Digite o nome completo"
+                       maxlength="50">
                 <div class="font-size-control">
-                    <label for="nameSize" class="sub-label">Tamanho da fonte:</label>
-                    <input type="range" id="nameSize" class="slider" min="12" max="24" value="18">
-                    <div class="slider-value" id="nameSizeValue">18px</div>
+                    <label for="nameSize" class="sub-label">Tamanho da fonte</label>
+                    <div class="slider-container">
+                        <input type="range" 
+                               id="nameSize" 
+                               class="slider" 
+                               min="12" 
+                               max="24" 
+                               value="18">
+                        <div class="slider-value" id="nameSizeValue" aria-live="polite">18px</div>
+                    </div>
                 </div>
             </div>
 
             <div class="control-group">
-                <label for="roleSelect">Curso</label>
-                <select id="courseSelect" class="select-input"></select>
-                <input type="text" id="courseCustom" class="text-input" placeholder="Digite o curso personalizado" style="display: none; margin-top: 0.5rem;">
+                <label for="courseSelect">🎓 Curso</label>
+                <select id="courseSelect" class="select-input" aria-describedby="course-help">
+                    <option value="">Selecione um curso</option>
+                </select>
+                <input type="text" 
+                       id="courseCustom" 
+                       class="text-input" 
+                       placeholder="Digite o curso personalizado" 
+                       style="display: none; margin-top: 0.5rem;"
+                       maxlength="60">
+                <div id="course-help" class="help-text">
+                    Escolha um curso da lista ou selecione "Outro" para especificar
+                </div>
                 <div class="font-size-control">
-                    <label for="courseSize" class="sub-label">Tamanho da fonte:</label>
-                    <input type="range" id="courseSize" class="slider" min="10" max="18" value="14">
-                    <div class="slider-value" id="courseSizeValue">14px</div>
+                    <label for="courseSize" class="sub-label">Tamanho da fonte</label>
+                    <div class="slider-container">
+                        <input type="range" 
+                               id="courseSize" 
+                               class="slider" 
+                               min="10" 
+                               max="18" 
+                               value="14">
+                        <div class="slider-value" id="courseSizeValue" aria-live="polite">14px</div>
+                    </div>
                 </div>
             </div>
 
             <div class="control-group">
-                <label for="locationSelect">Local</label>
-                <select id="locationSelect" class="select-input"></select>
-                <input type="text" id="locationCustom" class="text-input" placeholder="Digite o local personalizado" style="display: none; margin-top: 0.5rem;">
+                <label for="locationSelect">📍 Local</label>
+                <select id="locationSelect" class="select-input" aria-describedby="location-help">
+                    <option value="">Selecione um local</option>
+                </select>
+                <input type="text" 
+                       id="locationCustom" 
+                       class="text-input" 
+                       placeholder="Digite o local personalizado" 
+                       style="display: none; margin-top: 0.5rem;"
+                       maxlength="60">
+                <div id="location-help" class="help-text">
+                    Escolha um local da lista ou selecione "Outro" para especificar
+                </div>
                 <div class="font-size-control">
-                    <label for="locationSize" class="sub-label">Tamanho da fonte:</label>
-                    <input type="range" id="locationSize" class="slider" min="12" max="20" value="16">
-                    <div class="slider-value" id="locationSizeValue">16px</div>
+                    <label for="locationSize" class="sub-label">Tamanho da fonte</label>
+                    <div class="slider-container">
+                        <input type="range" 
+                               id="locationSize" 
+                               class="slider" 
+                               min="12" 
+                               max="20" 
+                               value="16">
+                        <div class="slider-value" id="locationSizeValue" aria-live="polite">16px</div>
+                    </div>
                 </div>
             </div>
-        </div>
+        </section>
 
-        <div class="generate-section">
-            <button id="generateCard" class="generate-btn">Gerar Crachá</button>
-            <button id="printCard" class="print-btn">🖨️ Imprimir</button>
-            <div id="downloadSection" class="download-section" style="display:none;">
-                <a id="downloadLink" href="#" class="download-link" download="cracha-cetep.png">⬇️ Baixar Crachá</a>
+        <section class="generate-section" aria-label="Ações do crachá">
+            <button id="generateCard" 
+                    class="generate-btn"
+                    aria-describedby="generate-help">
+                Gerar Crachá
+            </button>
+            <button id="printCard" 
+                    class="print-btn"
+                    aria-describedby="print-help">
+                🖨️ Imprimir
+            </button>
+            <div id="downloadSection" 
+                 class="download-section" 
+                 style="display:none;"
+                 role="region"
+                 aria-label="Download do crachá">
+                <a id="downloadLink" 
+                   href="#" 
+                   class="download-link" 
+                   download="cracha-cetep.png"
+                   aria-describedby="download-help">
+                    ⬇️ Baixar Crachá
+                </a>
             </div>
-        </div>
+            
+            <div id="generate-help" class="help-text" style="display: none;">
+                Clique para finalizar o crachá e disponibilizar o download
+            </div>
+            <div id="print-help" class="help-text" style="display: none;">
+                Imprime o crachá nas dimensões padrão 54x85mm
+            </div>
+            <div id="download-help" class="help-text" style="display: none;">
+                Baixa o crachá em alta qualidade PNG 300 DPI
+            </div>
+        </section>
     </div>
 
     <script src="script.js"></script>
