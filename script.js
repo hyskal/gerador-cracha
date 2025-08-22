@@ -7,14 +7,13 @@
  * Use o formato "Versão [número]: [Descrição da modificação]".
  * Mantenha a lista limitada às 4 últimas alterações para clareza e concisão.
  *
+ * Versão 2.3: Correção da renderização da imagem do usuário.
+ * - Centralização e ajuste de tamanho da imagem (50% da largura do crachá).
+ * - Lógica aprimorada para exibir a imagem atrás do modelo (com transparência).
+ * - Adicionados novos logs para rastreamento detalhado da renderização.
  * Versão 2.2: Refatoração para buscar dados de um arquivo JSON externo.
  * Versão 2.1: Separação do código JavaScript principal e eventos.
  * Versão 2.0: Código completamente refatorado para melhor organização e performance
- * - Correção da detecção de área transparente 
- * - Melhoria no sistema de arrastar imagem com mouse
- * - Fallback para imagens sem transparência (desenha na frente)
- * - Controles refinados e responsivos
- * - Código mais limpo e modular
  */
 
 class BadgeGenerator {
@@ -28,23 +27,16 @@ class BadgeGenerator {
     }
 
     initializeProperties() {
-        // Elementos DOM
         this.canvas = document.getElementById('canvas');
         this.ctx = this.canvas.getContext('2d');
-        
-        // Imagens
         this.userImage = null;
         this.modelImage = null;
         this.photoArea = null;
         this.hasTransparency = false;
-        
-        // Controles da imagem
         this.imagePosition = { x: 0, y: 0 };
         this.imageZoom = 1;
         this.isDragging = false;
         this.dragStart = { x: 0, y: 0 };
-        
-        // Configurações de qualidade
         this.SCALE_FACTOR = 3;
         this.PRINT_WIDTH_MM = 54;
         this.PRINT_HEIGHT_MM = 85;
@@ -52,20 +44,15 @@ class BadgeGenerator {
         this.PIXELS_PER_MM = this.DPI / 25.4;
         this.PRINT_WIDTH_PX = Math.round(this.PRINT_WIDTH_MM * this.PIXELS_PER_MM);
         this.PRINT_HEIGHT_PX = Math.round(this.PRINT_HEIGHT_MM * this.PIXELS_PER_MM);
-        
-        // Dados (agora carregados de data.json)
         this.data = {};
         this.modelLinks = {};
     }
 
     setupCanvas() {
-        // Configurar canvas com alta resolução
         this.canvas.width = 300 * this.SCALE_FACTOR;
         this.canvas.height = 400 * this.SCALE_FACTOR;
         this.canvas.style.width = '300px';
         this.canvas.style.height = '400px';
-        
-        // Configurar contexto para alta qualidade
         this.ctx.scale(this.SCALE_FACTOR, this.SCALE_FACTOR);
         this.ctx.imageSmoothingEnabled = true;
         this.ctx.imageSmoothingQuality = 'high';
@@ -86,7 +73,6 @@ class BadgeGenerator {
             this.updateSliderValues();
         } catch (error) {
             console.error('Falha ao carregar dados:', error);
-            // Definir dados de fallback se o JSON não for carregado
             this.data = {
                 courses: [],
                 locations: []
@@ -96,40 +82,27 @@ class BadgeGenerator {
     }
 
     bindEvents() {
-        // Upload de arquivos
         document.getElementById('uploadModel').addEventListener('change', (e) => this.handleModelUpload(e));
         document.getElementById('uploadImage').addEventListener('change', (e) => this.handleImageUpload(e));
-        
-        // Controles de ajuste
         document.getElementById('brightness').addEventListener('input', (e) => this.updateControl(e, 'brightnessValue'));
         document.getElementById('contrast').addEventListener('input', (e) => this.updateControl(e, 'contrastValue'));
         document.getElementById('positionX').addEventListener('input', (e) => this.updatePosition(e, 'x'));
         document.getElementById('positionY').addEventListener('input', (e) => this.updatePosition(e, 'y'));
         document.getElementById('zoom').addEventListener('input', (e) => this.updateZoom(e));
-        
-        // Botões de zoom
         document.getElementById('zoomIn').addEventListener('click', () => this.adjustZoom(10));
         document.getElementById('zoomOut').addEventListener('click', () => this.adjustZoom(-10));
-        
-        // Controles de texto
         document.getElementById('name').addEventListener('input', () => this.drawBadge());
         document.getElementById('nameSize').addEventListener('input', (e) => this.updateControl(e, 'nameSizeValue', 'px'));
         document.getElementById('courseSize').addEventListener('input', (e) => this.updateControl(e, 'courseSizeValue', 'px'));
         document.getElementById('locationSize').addEventListener('input', (e) => this.updateControl(e, 'locationSizeValue', 'px'));
-        
-        // Dropdowns
         document.getElementById('courseSelect').addEventListener('change', () => this.toggleCustomInput('course'));
         document.getElementById('locationSelect').addEventListener('change', () => this.toggleCustomInput('location'));
         document.getElementById('courseCustom').addEventListener('input', () => this.drawBadge());
         document.getElementById('locationCustom').addEventListener('input', () => this.drawBadge());
-        
-        // Mouse events para arrastar
         this.canvas.addEventListener('mousedown', (e) => this.startDrag(e));
         this.canvas.addEventListener('mousemove', (e) => this.handleDrag(e));
         this.canvas.addEventListener('mouseup', () => this.endDrag());
         this.canvas.addEventListener('mouseleave', () => this.endDrag());
-        
-        // Botões de ação
         document.getElementById('generateCard').addEventListener('click', () => this.generateCard());
         document.getElementById('printCard').addEventListener('click', () => this.printCard());
     }
@@ -137,12 +110,8 @@ class BadgeGenerator {
     setupDropdowns() {
         const courseSelect = document.getElementById('courseSelect');
         const locationSelect = document.getElementById('locationSelect');
-        
-        // Limpar dropdowns
         courseSelect.innerHTML = '<option value="">Selecione um curso</option>';
         locationSelect.innerHTML = '<option value="">Selecione um local</option>';
-        
-        // Preencher cursos
         if (this.data.courses) {
             this.data.courses.forEach(course => {
                 const option = document.createElement('option');
@@ -151,8 +120,6 @@ class BadgeGenerator {
                 courseSelect.appendChild(option);
             });
         }
-        
-        // Preencher locais
         if (this.data.locations) {
             this.data.locations.forEach(location => {
                 const option = document.createElement('option');
@@ -161,8 +128,6 @@ class BadgeGenerator {
                 locationSelect.appendChild(option);
             });
         }
-        
-        // Adicionar opção "Outro"
         ['courseSelect', 'locationSelect'].forEach(id => {
             const select = document.getElementById(id);
             const option = document.createElement('option');
@@ -175,7 +140,6 @@ class BadgeGenerator {
     toggleCustomInput(type) {
         const select = document.getElementById(`${type}Select`);
         const customInput = document.getElementById(`${type}Custom`);
-        
         customInput.style.display = select.value === 'custom' ? 'block' : 'none';
         this.drawBadge();
     }
@@ -202,7 +166,6 @@ class BadgeGenerator {
         const zoomSlider = document.getElementById('zoom');
         const currentValue = parseInt(zoomSlider.value);
         const newValue = Math.max(50, Math.min(200, currentValue + delta));
-        
         zoomSlider.value = newValue;
         this.imageZoom = newValue / 100;
         document.getElementById('zoomValue').textContent = newValue + '%';
@@ -220,7 +183,6 @@ class BadgeGenerator {
             { id: 'courseSize', valueId: 'courseSizeValue', suffix: 'px' },
             { id: 'locationSize', valueId: 'locationSizeValue', suffix: 'px' }
         ];
-        
         sliders.forEach(slider => {
             const element = document.getElementById(slider.id);
             const valueElement = document.getElementById(slider.valueId);
@@ -240,22 +202,18 @@ class BadgeGenerator {
     loadModelFromUrl(url) {
         return new Promise((resolve, reject) => {
             console.log('Carregando modelo:', url);
-            
             this.modelImage = new Image();
             this.modelImage.crossOrigin = 'anonymous';
-            
             this.modelImage.onload = () => {
-                console.log('Modelo carregado com sucesso');
+                console.log('Modelo carregado com sucesso.');
                 this.analyzeTransparency();
                 this.drawBadge();
                 resolve();
             };
-            
             this.modelImage.onerror = () => {
-                console.error('Erro ao carregar modelo');
+                console.error('Erro ao carregar modelo.');
                 reject();
             };
-            
             this.modelImage.src = url;
         });
     }
@@ -263,17 +221,15 @@ class BadgeGenerator {
     handleModelUpload(event) {
         const file = event.target.files[0];
         if (!file) return;
-        
         if (file.type !== 'image/png') {
             alert('Por favor, selecione apenas arquivos PNG.');
             return;
         }
-        
         const reader = new FileReader();
         reader.onload = (e) => {
             this.modelImage = new Image();
             this.modelImage.onload = () => {
-                console.log('Modelo local carregado');
+                console.log('Modelo local carregado.');
                 this.analyzeTransparency();
                 this.drawBadge();
             };
@@ -285,18 +241,16 @@ class BadgeGenerator {
     handleImageUpload(event) {
         const file = event.target.files[0];
         if (!file) return;
-        
         if (!this.modelImage) {
             alert('Por favor, carregue um modelo primeiro.');
             event.target.value = '';
             return;
         }
-        
         const reader = new FileReader();
         reader.onload = (e) => {
             this.userImage = new Image();
             this.userImage.onload = () => {
-                console.log('Imagem do usuário carregada');
+                console.log('Imagem do usuário carregada.');
                 this.processUserImage();
             };
             this.userImage.src = e.target.result;
@@ -305,26 +259,19 @@ class BadgeGenerator {
     }
 
     processUserImage() {
-        // Aplicar filtro de nitidez
         const tempCanvas = document.createElement('canvas');
         const tempCtx = tempCanvas.getContext('2d');
-        
         const aspectRatio = this.userImage.width / this.userImage.height;
         const targetWidth = 800;
         const targetHeight = Math.round(targetWidth / aspectRatio);
-        
         tempCanvas.width = targetWidth;
         tempCanvas.height = targetHeight;
-        
         tempCtx.imageSmoothingEnabled = true;
         tempCtx.imageSmoothingQuality = 'high';
         tempCtx.drawImage(this.userImage, 0, 0, targetWidth, targetHeight);
-        
-        // Aplicar filtro de nitidez
         const imageData = tempCtx.getImageData(0, 0, targetWidth, targetHeight);
         const sharpened = this.applySharpenFilter(imageData);
         tempCtx.putImageData(sharpened, 0, 0);
-        
         const processedImage = new Image();
         processedImage.onload = () => {
             this.userImage = processedImage;
@@ -340,9 +287,7 @@ class BadgeGenerator {
         const height = imageData.height;
         const output = new ImageData(width, height);
         const outputData = output.data;
-        
         const kernel = [0, -0.3, 0, -0.3, 2.2, -0.3, 0, -0.3, 0];
-        
         for (let y = 1; y < height - 1; y++) {
             for (let x = 1; x < width - 1; x++) {
                 for (let c = 0; c < 3; c++) {
@@ -366,25 +311,21 @@ class BadgeGenerator {
 
     analyzeTransparency() {
         if (!this.modelImage) return;
-        
         const tempCanvas = document.createElement('canvas');
         const tempCtx = tempCanvas.getContext('2d');
         tempCanvas.width = this.modelImage.width;
         tempCanvas.height = this.modelImage.height;
         tempCtx.drawImage(this.modelImage, 0, 0);
-        
         try {
             const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
             const data = imageData.data;
-            
             let minX = tempCanvas.width, minY = tempCanvas.height;
             let maxX = 0, maxY = 0;
             let transparentPixels = 0;
-            
             for (let y = 0; y < tempCanvas.height; y++) {
                 for (let x = 0; x < tempCanvas.width; x++) {
                     const alpha = data[((y * tempCanvas.width) + x) * 4 + 3];
-                    if (alpha < 128) { // Considera pixels semi-transparentes também
+                    if (alpha < 128) {
                         transparentPixels++;
                         if (x < minX) minX = x;
                         if (y < minY) minY = y;
@@ -393,8 +334,7 @@ class BadgeGenerator {
                     }
                 }
             }
-            
-            if (transparentPixels > 100) { // Área transparente significativa
+            if (transparentPixels > 100) {
                 this.hasTransparency = true;
                 this.photoArea = {
                     x: minX,
@@ -406,7 +346,7 @@ class BadgeGenerator {
             } else {
                 this.hasTransparency = false;
                 this.photoArea = null;
-                console.log('Sem transparência - imagem será desenhada na frente');
+                console.log('Sem transparência - imagem será desenhada na frente.');
             }
         } catch (error) {
             console.warn('Erro ao analisar transparência:', error);
@@ -418,34 +358,25 @@ class BadgeGenerator {
     resetImageControls() {
         this.imagePosition = { x: 0, y: 0 };
         this.imageZoom = 1;
-        
         document.getElementById('positionX').value = 0;
         document.getElementById('positionY').value = 0;
         document.getElementById('zoom').value = 100;
-        
         this.updateSliderValues();
     }
 
     startDrag(event) {
         if (!this.userImage) return;
-        
         const rect = this.canvas.getBoundingClientRect();
         const mouseX = ((event.clientX - rect.left) / rect.width) * (this.canvas.width / this.SCALE_FACTOR);
         const mouseY = ((event.clientY - rect.top) / rect.height) * (this.canvas.height / this.SCALE_FACTOR);
-        
-        // Verificar se o clique está na área da imagem
         let canDrag = false;
-        
         if (this.hasTransparency && this.photoArea) {
-            // Se há transparência, verificar se está na área da foto
             canDrag = mouseX >= this.photoArea.x && mouseX <= this.photoArea.x + this.photoArea.width &&
                      mouseY >= this.photoArea.y && mouseY <= this.photoArea.y + this.photoArea.height;
         } else {
-            // Se não há transparência, permitir arrastar em qualquer lugar
             canDrag = mouseX >= 50 && mouseX <= this.canvas.width / this.SCALE_FACTOR - 50 &&
                      mouseY >= 50 && mouseY <= this.canvas.height / this.SCALE_FACTOR - 50;
         }
-        
         if (canDrag) {
             this.isDragging = true;
             this.dragStart = {
@@ -453,28 +384,21 @@ class BadgeGenerator {
                 y: mouseY - this.imagePosition.y
             };
             this.canvas.style.cursor = 'grabbing';
-            console.log('Iniciando arrasto');
+            console.log('Iniciando arrasto.');
         }
     }
 
     handleDrag(event) {
         if (!this.isDragging) return;
-        
         const rect = this.canvas.getBoundingClientRect();
         const mouseX = ((event.clientX - rect.left) / rect.width) * (this.canvas.width / this.SCALE_FACTOR);
         const mouseY = ((event.clientY - rect.top) / rect.height) * (this.canvas.height / this.SCALE_FACTOR);
-        
         this.imagePosition.x = mouseX - this.dragStart.x;
         this.imagePosition.y = mouseY - this.dragStart.y;
-        
-        // Limitar movimento dentro de bounds razoáveis
         this.imagePosition.x = Math.max(-200, Math.min(200, this.imagePosition.x));
         this.imagePosition.y = Math.max(-200, Math.min(200, this.imagePosition.y));
-        
-        // Atualizar sliders
         document.getElementById('positionX').value = Math.round(this.imagePosition.x);
         document.getElementById('positionY').value = Math.round(this.imagePosition.y);
-        
         this.updateSliderValues();
         this.drawBadge();
     }
@@ -482,34 +406,29 @@ class BadgeGenerator {
     endDrag() {
         this.isDragging = false;
         this.canvas.style.cursor = this.userImage ? 'grab' : 'default';
+        console.log('Arrasto finalizado.');
     }
 
     drawBadge() {
         if (!this.modelImage || !this.modelImage.complete) {
-            console.log('Modelo não disponível');
+            console.log('Modelo não disponível para desenho.');
             return;
         }
-        
-        // Limpar canvas
         this.ctx.clearRect(0, 0, this.canvas.width / this.SCALE_FACTOR, this.canvas.height / this.SCALE_FACTOR);
         
-        const canvasWidth = this.canvas.width / this.SCALE_FACTOR;
-        const canvasHeight = this.canvas.height / this.SCALE_FACTOR;
-        
-        if (this.userImage && this.hasTransparency && this.photoArea) {
-            // Caso 1: Há transparência - desenhar imagem atrás do modelo
-            this.drawUserImageBehind();
-            this.drawModel();
-        } else if (this.userImage && !this.hasTransparency) {
-            // Caso 2: Sem transparência - desenhar modelo primeiro, depois imagem na frente
-            this.drawModel();
-            this.drawUserImageInFront();
+        if (this.userImage) {
+            console.log('Desenhando imagem do usuário.');
+            if (this.hasTransparency && this.photoArea) {
+                this.drawUserImageBehind();
+                this.drawModel();
+            } else {
+                this.drawModel();
+                this.drawUserImageInFront();
+            }
         } else {
-            // Caso 3: Só modelo
+            console.log('Imagem do usuário não disponível. Desenhando apenas o modelo.');
             this.drawModel();
         }
-        
-        // Desenhar textos sempre por último
         this.drawTexts();
     }
 
@@ -517,88 +436,59 @@ class BadgeGenerator {
         const canvasWidth = this.canvas.width / this.SCALE_FACTOR;
         const canvasHeight = this.canvas.height / this.SCALE_FACTOR;
         this.ctx.drawImage(this.modelImage, 0, 0, canvasWidth, canvasHeight);
+        console.log('Modelo do crachá desenhado.');
     }
 
     drawUserImageBehind() {
-        // Aplicar filtros
         const brightness = parseInt(document.getElementById('brightness').value);
         const contrast = parseInt(document.getElementById('contrast').value);
         this.ctx.filter = `brightness(${100 + brightness}%) contrast(${100 + contrast}%)`;
+
+        const canvasWidth = this.canvas.width / this.SCALE_FACTOR;
         
-        // Calcular dimensões mantendo proporção
-        const userAspect = this.userImage.width / this.userImage.height;
-        const photoAspect = this.photoArea.width / this.photoArea.height;
+        // Define a largura da imagem do usuário para 50% da largura do canvas
+        const userDrawWidth = canvasWidth * 0.5 * this.imageZoom;
+        const userDrawHeight = userDrawWidth / (this.userImage.width / this.userImage.height);
         
-        let imageDrawWidth, imageDrawHeight;
+        // Centraliza a imagem no canvas e adiciona os ajustes de posição
+        const userDrawX = (canvasWidth / 2) - (userDrawWidth / 2) + this.imagePosition.x;
+        const userDrawY = (this.canvas.height / this.SCALE_FACTOR / 2) - (userDrawHeight / 2) + this.imagePosition.y;
         
-        if (userAspect > photoAspect) {
-            imageDrawHeight = this.photoArea.height * this.imageZoom;
-            imageDrawWidth = imageDrawHeight * userAspect;
-        } else {
-            imageDrawWidth = this.photoArea.width * this.imageZoom;
-            imageDrawHeight = imageDrawWidth / userAspect;
-        }
-        
-        // Posicionamento centralizado + ajuste manual
-        const imageDrawX = this.photoArea.x + this.imagePosition.x + (this.photoArea.width - imageDrawWidth) / 2;
-        const imageDrawY = this.photoArea.y + this.imagePosition.y + (this.photoArea.height - imageDrawHeight) / 2;
-        
-        // Clipar para área transparente
         this.ctx.save();
         this.ctx.beginPath();
+        
+        // Oculta a área que será coberta pela foto dentro do modelo
         this.ctx.rect(this.photoArea.x, this.photoArea.y, this.photoArea.width, this.photoArea.height);
         this.ctx.clip();
         
         this.ctx.drawImage(
             this.userImage,
-            0, 0, this.userImage.width, this.userImage.height,
-            imageDrawX, imageDrawY, imageDrawWidth, imageDrawHeight
+            userDrawX, userDrawY, userDrawWidth, userDrawHeight
         );
         
         this.ctx.restore();
         this.ctx.filter = 'none';
+        console.log('Imagem do usuário desenhada atrás do modelo (com transparência).');
     }
 
     drawUserImageInFront() {
-        // Aplicar filtros
         const brightness = parseInt(document.getElementById('brightness').value);
         const contrast = parseInt(document.getElementById('contrast').value);
         this.ctx.filter = `brightness(${100 + brightness}%) contrast(${100 + contrast}%)`;
         
         const canvasWidth = this.canvas.width / this.SCALE_FACTOR;
-        const canvasHeight = this.canvas.height / this.SCALE_FACTOR;
+        const userDrawWidth = canvasWidth * 0.5 * this.imageZoom;
+        const userDrawHeight = userDrawWidth / (this.userImage.width / this.userImage.height);
         
-        // Área padrão quando não há transparência (centro do canvas)
-        const defaultArea = {
-            x: canvasWidth * 0.2,
-            y: canvasHeight * 0.15,
-            width: canvasWidth * 0.6,
-            height: canvasHeight * 0.5
-        };
-        
-        const userAspect = this.userImage.width / this.userImage.height;
-        const areaAspect = defaultArea.width / defaultArea.height;
-        
-        let imageDrawWidth, imageDrawHeight;
-        
-        if (userAspect > areaAspect) {
-            imageDrawWidth = defaultArea.width * this.imageZoom;
-            imageDrawHeight = imageDrawWidth / userAspect;
-        } else {
-            imageDrawHeight = defaultArea.height * this.imageZoom;
-            imageDrawWidth = imageDrawHeight * userAspect;
-        }
-        
-        const imageDrawX = defaultArea.x + this.imagePosition.x + (defaultArea.width - imageDrawWidth) / 2;
-        const imageDrawY = defaultArea.y + this.imagePosition.y + (defaultArea.height - imageDrawHeight) / 2;
+        const userDrawX = (canvasWidth / 2) - (userDrawWidth / 2) + this.imagePosition.x;
+        const userDrawY = (this.canvas.height / this.SCALE_FACTOR / 2) - (userDrawHeight / 2) + this.imagePosition.y;
         
         this.ctx.drawImage(
             this.userImage,
-            0, 0, this.userImage.width, this.userImage.height,
-            imageDrawX, imageDrawY, imageDrawWidth, imageDrawHeight
+            userDrawX, userDrawY, userDrawWidth, userDrawHeight
         );
-        
         this.ctx.filter = 'none';
+        console.log('Imagem do usuário desenhada na frente do modelo.');
     }
 
     drawTexts() {
@@ -606,36 +496,29 @@ class BadgeGenerator {
         const courseSelect = document.getElementById('courseSelect').value;
         const courseCustom = document.getElementById('courseCustom').value;
         const course = courseSelect === 'custom' ? courseCustom : courseSelect;
-        
         const locationSelect = document.getElementById('locationSelect').value;
         const locationCustom = document.getElementById('locationCustom').value;
         const location = locationSelect === 'custom' ? locationCustom : locationSelect;
-        
         const nameSize = parseInt(document.getElementById('nameSize').value);
         const courseSize = parseInt(document.getElementById('courseSize').value);
         const locationSize = parseInt(document.getElementById('locationSize').value);
-        
         this.ctx.fillStyle = '#1e3a8a';
         this.ctx.textAlign = 'center';
-        
         const canvasWidth = this.canvas.width / this.SCALE_FACTOR;
         const centerX = canvasWidth / 2;
-        
-        // Posições ajustadas dos textos
         if (name) {
             this.ctx.font = `bold ${nameSize}px Arial, sans-serif`;
             this.ctx.fillText(name, centerX, 305);
         }
-        
         if (course) {
             this.ctx.font = `${courseSize}px Arial, sans-serif`;
             this.ctx.fillText(course, centerX, 320);
         }
-        
         if (location) {
             this.ctx.font = `${locationSize}px Arial, sans-serif`;
             this.ctx.fillText(location, centerX, 335);
         }
+        console.log('Textos do crachá desenhados.');
     }
 
     generateCard() {
@@ -643,7 +526,6 @@ class BadgeGenerator {
             alert('Por favor, carregue a foto e o modelo antes de gerar.');
             return;
         }
-        
         document.getElementById('downloadSection').style.display = 'block';
         this.createDownloadLink();
     }
@@ -653,7 +535,6 @@ class BadgeGenerator {
             alert('Por favor, carregue a foto e o modelo antes de imprimir.');
             return;
         }
-        
         this.drawBadge();
         window.print();
     }
@@ -663,17 +544,11 @@ class BadgeGenerator {
         printCanvas.width = this.PRINT_WIDTH_PX;
         printCanvas.height = this.PRINT_HEIGHT_PX;
         const printCtx = printCanvas.getContext('2d');
-        
         printCtx.imageSmoothingEnabled = true;
         printCtx.imageSmoothingQuality = 'high';
-        
-        // Escalar para dimensões de impressão
         const scaleX = this.PRINT_WIDTH_PX / (this.canvas.width / this.SCALE_FACTOR);
         const scaleY = this.PRINT_HEIGHT_PX / (this.canvas.height / this.SCALE_FACTOR);
-        
         printCtx.scale(scaleX, scaleY);
-        
-        // Reproduzir o mesmo desenho do canvas principal
         if (this.userImage && this.hasTransparency && this.photoArea) {
             this.drawUserImageOnPrintCanvas(printCtx);
             printCtx.drawImage(this.modelImage, 0, 0, this.canvas.width / this.SCALE_FACTOR, this.canvas.height / this.SCALE_FACTOR);
@@ -683,9 +558,7 @@ class BadgeGenerator {
         } else {
             printCtx.drawImage(this.modelImage, 0, 0, this.canvas.width / this.SCALE_FACTOR, this.canvas.height / this.SCALE_FACTOR);
         }
-        
         this.drawTextsOnPrintCanvas(printCtx);
-        
         const dataURL = printCanvas.toDataURL('image/png');
         const downloadLink = document.getElementById('downloadLink');
         downloadLink.href = dataURL;
@@ -696,70 +569,29 @@ class BadgeGenerator {
         const contrast = parseInt(document.getElementById('contrast').value);
         printCtx.filter = `brightness(${100 + brightness}%) contrast(${100 + contrast}%)`;
         
+        const canvasWidth = this.canvas.width / this.SCALE_FACTOR;
+        const userDrawWidth = canvasWidth * 0.5 * this.imageZoom;
+        const userDrawHeight = userDrawWidth / (this.userImage.width / this.userImage.height);
+        
+        const userDrawX = (canvasWidth / 2) - (userDrawWidth / 2) + this.imagePosition.x;
+        const userDrawY = (this.canvas.height / this.SCALE_FACTOR / 2) - (userDrawHeight / 2) + this.imagePosition.y;
+        
         if (this.hasTransparency && !inFront && this.photoArea) {
-            const userAspect = this.userImage.width / this.userImage.height;
-            const photoAspect = this.photoArea.width / this.photoArea.height;
-            
-            let imageDrawWidth, imageDrawHeight;
-            
-            if (userAspect > photoAspect) {
-                imageDrawHeight = this.photoArea.height * this.imageZoom;
-                imageDrawWidth = imageDrawHeight * userAspect;
-            } else {
-                imageDrawWidth = this.photoArea.width * this.imageZoom;
-                imageDrawHeight = imageDrawWidth / userAspect;
-            }
-            
-            const imageDrawX = this.photoArea.x + this.imagePosition.x + (this.photoArea.width - imageDrawWidth) / 2;
-            const imageDrawY = this.photoArea.y + this.imagePosition.y + (this.photoArea.height - imageDrawHeight) / 2;
-            
             printCtx.save();
             printCtx.beginPath();
             printCtx.rect(this.photoArea.x, this.photoArea.y, this.photoArea.width, this.photoArea.height);
             printCtx.clip();
-            
             printCtx.drawImage(
                 this.userImage,
-                0, 0, this.userImage.width, this.userImage.height,
-                imageDrawX, imageDrawY, imageDrawWidth, imageDrawHeight
+                userDrawX, userDrawY, userDrawWidth, userDrawHeight
             );
-            
             printCtx.restore();
         } else {
-            // Desenhar na frente quando não há transparência
-            const canvasWidth = this.canvas.width / this.SCALE_FACTOR;
-            const canvasHeight = this.canvas.height / this.SCALE_FACTOR;
-            
-            const defaultArea = {
-                x: canvasWidth * 0.2,
-                y: canvasHeight * 0.15,
-                width: canvasWidth * 0.6,
-                height: canvasHeight * 0.5
-            };
-            
-            const userAspect = this.userImage.width / this.userImage.height;
-            const areaAspect = defaultArea.width / defaultArea.height;
-            
-            let imageDrawWidth, imageDrawHeight;
-            
-            if (userAspect > areaAspect) {
-                imageDrawWidth = defaultArea.width * this.imageZoom;
-                imageDrawHeight = imageDrawWidth / userAspect;
-            } else {
-                imageDrawHeight = defaultArea.height * this.imageZoom;
-                imageDrawWidth = imageDrawHeight * userAspect;
-            }
-            
-            const imageDrawX = defaultArea.x + this.imagePosition.x + (defaultArea.width - imageDrawWidth) / 2;
-            const imageDrawY = defaultArea.y + this.imagePosition.y + (defaultArea.height - imageDrawHeight) / 2;
-            
             printCtx.drawImage(
                 this.userImage,
-                0, 0, this.userImage.width, this.userImage.height,
-                imageDrawX, imageDrawY, imageDrawWidth, imageDrawHeight
+                userDrawX, userDrawY, userDrawWidth, userDrawHeight
             );
         }
-        
         printCtx.filter = 'none';
     }
 
@@ -768,31 +600,24 @@ class BadgeGenerator {
         const courseSelect = document.getElementById('courseSelect').value;
         const courseCustom = document.getElementById('courseCustom').value;
         const course = courseSelect === 'custom' ? courseCustom : courseSelect;
-        
         const locationSelect = document.getElementById('locationSelect').value;
         const locationCustom = document.getElementById('locationCustom').value;
         const location = locationSelect === 'custom' ? locationCustom : locationSelect;
-        
         const nameSize = parseInt(document.getElementById('nameSize').value);
         const courseSize = parseInt(document.getElementById('courseSize').value);
         const locationSize = parseInt(document.getElementById('locationSize').value);
-        
         printCtx.fillStyle = '#1e3a8a';
         printCtx.textAlign = 'center';
-        
         const canvasWidth = this.canvas.width / this.SCALE_FACTOR;
         const centerX = canvasWidth / 2;
-        
         if (name) {
             printCtx.font = `bold ${nameSize}px Arial, sans-serif`;
             printCtx.fillText(name, centerX, 305);
         }
-        
         if (course) {
             printCtx.font = `${courseSize}px Arial, sans-serif`;
             printCtx.fillText(course, centerX, 320);
         }
-        
         if (location) {
             printCtx.font = `${locationSize}px Arial, sans-serif`;
             printCtx.fillText(location, centerX, 335);
@@ -800,7 +625,6 @@ class BadgeGenerator {
     }
 }
 
-// Inicializar o gerador quando a página carregar
 document.addEventListener('DOMContentLoaded', () => {
     window.badgeGenerator = new BadgeGenerator();
 });
