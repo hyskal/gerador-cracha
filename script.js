@@ -51,10 +51,10 @@ ctx.textRenderingOptimization = 'optimizeQuality';
 // --- INÍCIO: NOVAS FUNCIONALIDADES ---
 // Lista de modelos pré-definidos. O primeiro da lista será carregado por padrão.
 const modelLinks = {
-    'Modelo Padrão': 'https://i.ibb.co/PZQLwy4/cgara-transpp.png',
-    'Modelo 2': 'https://i.ibb.co/PZQLwy4/cgara-transpp.png',
-    'Modelo 3': 'https://i.ibb.co/PZQLwy4/cgara-transpp.png',
-    'Modelo 4': 'https://i.ibb.co/PZQLwy4/cgara-transpp.png'
+    'Modelo Padrão': 'https://i.ibb.co/PZQLwy4t/cgara-transpp.png',
+    'Modelo 2': 'https://i.ibb.co/PZQLwy4t/cgara-transpp.png',
+    'Modelo 3': 'https://i.ibb.co/PZQLwy4t/cgara-transpp.png',
+    'Modelo 4': 'https://i.ibb.co/PZQLwy4t/cgara-transpp.png'
 };
 
 // JSON para cursos e locais
