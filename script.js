@@ -9,6 +9,7 @@
  */
 /* * Versão 1.1: Adicionado CHANGELOG no início do arquivo.
  * Versão 1.2: Implementada lógica para mover a foto com o mouse, adicionados JSON para listas suspensas de cursos e locais com opção "Outro (especificar)", reposicionado os campos de texto no crachá e corrigido as dimensões de impressão para 54mm x 85mm.
+ * Versão 1.3: Removida a seleção de modelo padrão, o primeiro modelo agora é pré-carregado automaticamente ao iniciar a página.
  */
 
 // Variáveis globais
@@ -47,12 +48,9 @@ ctx.imageSmoothingQuality = 'high';
 ctx.textRenderingOptimization = 'optimizeQuality';
 
 // --- INÍCIO: NOVAS FUNCIONALIDADES ---
-// Lista de modelos pré-definidos. Preencha os links dos modelos aqui.
-// Esta seção será substituída por uma lista com 4 opções de modelos
+// Lista de modelos pré-definidos. O primeiro da lista será carregado por padrão.
 const modelLinks = {
-    // Atenção: Usei o mesmo link fornecido para todos os modelos.
-    // Substitua-o pelos links corretos dos seus modelos.
-    'Modelo 1': 'https://i.ibb.co/PZQLwy4/cgara-transpp.png',
+    'Modelo Padrão': 'https://i.ibb.co/PZQLwy4/cgara-transpp.png',
     'Modelo 2': 'https://i.ibb.co/PZQLwy4/cgara-transpp.png',
     'Modelo 3': 'https://i.ibb.co/PZQLwy4/cgara-transpp.png',
     'Modelo 4': 'https://i.ibb.co/PZQLwy4/cgara-transpp.png'
@@ -61,12 +59,12 @@ const modelLinks = {
 // JSON para cursos e locais
 const data = {
     "courses": [
-        "TÉCNICO EM ANÁLISES CLÍNICAS",
-        "TÉCNICO EM NUTRIÇÃO E DIETÉTICA",
-        "TÉCNICO EM SERVIÇOS JURÍDICOS",
-        "TÉCNICO EM INFORMÁTICA",
-        "TÉCNICO EM AGROECOLOGIA",
-        "TÉCNICO EM ADMINISTRAÇÃO"
+        "Técnico em Análises Clínicas",
+        "Técnico em Nutrição e Dietética",
+        "Técnico em Serviços Jurídicos",
+        "Técnico em Informática",
+        "Técnico em Agroecologia",
+        "Técnico em Administração"
     ],
     "locations": [
         "HOSPITAL REGIONAL DANTAS BIÃO",
@@ -140,30 +138,12 @@ function setupDropdowns() {
     document.getElementById('locationCustom').addEventListener('input', drawBadge);
 }
 
-// Preencher o select de modelos e carregar o modelo padrão
-function setupModels() {
-    const modelSelect = document.getElementById('modelSelect');
-    let defaultModelUrl = null;
-
-    for (const name in modelLinks) {
-        if (modelLinks.hasOwnProperty(name)) {
-            const option = document.createElement('option');
-            option.value = modelLinks[name];
-            option.textContent = name;
-            modelSelect.appendChild(option);
-        }
+// Carrega o modelo padrão ao iniciar a página
+function loadDefaultModel() {
+    const defaultModelUrl = Object.values(modelLinks)[0];
+    if (defaultModelUrl) {
+        loadModelFromUrl(defaultModelUrl);
     }
-    
-    // Define o valor padrão para a seleção e carrega o primeiro modelo
-    if (Object.keys(modelLinks).length > 0) {
-        const firstModelName = Object.keys(modelLinks)[0];
-        modelSelect.value = modelLinks[firstModelName];
-        loadModelFromUrl(modelLinks[firstModelName]);
-    }
-    
-    modelSelect.addEventListener('change', function() {
-        loadModelFromUrl(this.value);
-    });
 }
 // --- FIM: NOVAS FUNCIONALIDADES ---
 
@@ -636,7 +616,7 @@ function createDownloadLink() {
     }
 }
 
-// Inicializa a configuração dos modelos e os controles
-setupModels();
+// Inicializa a configuração dos dropdowns e dos controles
 setupDropdowns();
 updateSliderValues();
+loadDefaultModel();
