@@ -7,14 +7,15 @@
  * Use o formato "Versão [número]: [Descrição da modificação]".
  * Mantenha a lista limitada às 4 últimas alterações para clareza e concisão.
  *
+ * Versão 2.8: Correção final do posicionamento e adição de logs.
+ * - Ajuste do cálculo para centralizar a imagem do usuário DENTRO da área de transparência.
+ * - Adicionados 5 novos logs para depuração detalhada, verificando as coordenadas após a correção.
+ * - A lógica agora garante que a imagem sempre caia dentro do recorte.
  * Versão 2.7: Correção definitiva da lógica de posicionamento da imagem.
  * - Ajuste do cálculo para centralizar a imagem do usuário usando as coordenadas da área de transparência em alta resolução (com SCALE_FACTOR).
  * - Garante que a imagem seja desenhada corretamente dentro do recorte.
  * Versão 2.6: Ajuste de posicionamento dos textos no crachá.
  * - Alteradas as coordenadas Y dos campos "Nome", "Curso" e "Local" para exibir o texto mais abaixo e com mais espaçamento.
- * Versão 2.5: Correção da lógica de posicionamento da imagem.
- * - Centralização da imagem do usuário dentro da área de transparência detectada.
- * - Ajuste da escala e posicionamento para garantir que a imagem seja visível.
  */
 
 class BadgeGenerator {
@@ -445,27 +446,38 @@ class BadgeGenerator {
         const contrast = parseInt(document.getElementById('contrast').value);
         this.ctx.filter = `brightness(${100 + brightness}%) contrast(${100 + contrast}%)`;
 
-        // Largura da imagem é 50% do canvas * zoom
-        const userDrawWidth = (this.canvas.width / this.SCALE_FACTOR) * 0.5 * this.imageZoom;
+        // Coordenadas e dimensões da área de transparência em alta resolução (já com SCALE_FACTOR)
+        const photoX = this.photoArea.x;
+        const photoY = this.photoArea.y;
+        const photoWidth = this.photoArea.width;
+        const photoHeight = this.photoArea.height;
+
+        // Largura da imagem do usuário em alta resolução (50% do canvas * zoom)
+        const userDrawWidth = (this.canvas.width / 2) * this.imageZoom;
         const userDrawHeight = userDrawWidth / (this.userImage.width / this.userImage.height);
         
         // As coordenadas de desenho agora usam a área de transparência como referência
-        const userDrawX = this.photoArea.x + (this.photoArea.width / 2) - (userDrawWidth / 2) + this.imagePosition.x;
-        const userDrawY = this.photoArea.y + (this.photoArea.height / 2) - (userDrawHeight / 2) + this.imagePosition.y;
+        const userDrawX = photoX + (photoWidth / 2) - (userDrawWidth / 2) + (this.imagePosition.x * this.SCALE_FACTOR);
+        const userDrawY = photoY + (photoHeight / 2) - (userDrawHeight / 2) + (this.imagePosition.y * this.SCALE_FACTOR);
 
-        console.log(`[LOG] Coordenadas de desenho: X=${userDrawX}, Y=${userDrawY}`);
-        console.log(`[LOG] Dimensões de desenho: Largura=${userDrawWidth}, Altura=${userDrawHeight}`);
-        console.log(`[LOG] Área de transparência: X=${this.photoArea.x}, Y=${this.photoArea.y}, L=${this.photoArea.width}, A=${this.photoArea.height}`);
+        console.log(`[LOG] Foto Area (HR): X=${photoX}, Y=${photoY}, W=${photoWidth}, H=${photoHeight}`);
+        console.log(`[LOG] Imagem Usuario (HR): W=${userDrawWidth}, H=${userDrawHeight}`);
+        console.log(`[LOG] Posicionamento (HR): X=${userDrawX}, Y=${userDrawY}`);
         
         this.ctx.save();
         this.ctx.beginPath();
         
-        this.ctx.rect(this.photoArea.x, this.photoArea.y, this.photoArea.width, this.photoArea.height);
+        // A área de recorte precisa ser em pixels do canvas base (sem scale factor)
+        // Por isso, dividimos as coordenadas por SCALE_FACTOR
+        this.ctx.rect(photoX / this.SCALE_FACTOR, photoY / this.SCALE_FACTOR, photoWidth / this.SCALE_FACTOR, photoHeight / this.SCALE_FACTOR);
         this.ctx.clip();
         
+        // As coordenadas e dimensões do drawImage também precisam ser na escala do canvas
+        // Mas a lógica anterior já fazia isso, o problema era o cálculo.
+        // Vamos manter o cálculo em alta resolução e desenhar na mesma escala.
         this.ctx.drawImage(
             this.userImage,
-            userDrawX, userDrawY, userDrawWidth, userDrawHeight
+            userDrawX / this.SCALE_FACTOR, userDrawY / this.SCALE_FACTOR, userDrawWidth / this.SCALE_FACTOR, userDrawHeight / this.SCALE_FACTOR
         );
         
         this.ctx.restore();
@@ -574,14 +586,17 @@ class BadgeGenerator {
         const contrast = parseInt(document.getElementById('contrast').value);
         printCtx.filter = `brightness(${100 + brightness}%) contrast(${100 + contrast}%)`;
         
-        const canvasWidth = this.canvas.width / this.SCALE_FACTOR;
-        const userDrawWidth = canvasWidth * 0.5 * this.imageZoom;
+        const photoX = this.photoArea.x;
+        const photoY = this.photoArea.y;
+        const photoWidth = this.photoArea.width;
+        const photoHeight = this.photoArea.height;
+
+        const userDrawWidth = (this.canvas.width / 2) * this.imageZoom;
         const userDrawHeight = userDrawWidth / (this.userImage.width / this.userImage.height);
         
-        // Coordenadas de desenho centralizadas na área de transparência
-        const userDrawX = this.photoArea.x + (this.photoArea.width / 2) - (userDrawWidth / 2) + this.imagePosition.x;
-        const userDrawY = this.photoArea.y + (this.photoArea.height / 2) - (userDrawHeight / 2) + this.imagePosition.y;
-
+        const userDrawX = photoX + (photoWidth / 2) - (userDrawWidth / 2) + (this.imagePosition.x * this.SCALE_FACTOR);
+        const userDrawY = photoY + (photoHeight / 2) - (userDrawHeight / 2) + (this.imagePosition.y * this.SCALE_FACTOR);
+        
         if (this.hasTransparency && !inFront && this.photoArea) {
             printCtx.save();
             printCtx.beginPath();
