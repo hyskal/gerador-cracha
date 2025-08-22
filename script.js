@@ -11,6 +11,7 @@
  * Versão 1.2: Implementada lógica para mover a foto com o mouse, adicionados JSON para listas suspensas de cursos e locais com opção "Outro (especificar)", reposicionado os campos de texto no crachá e corrigido as dimensões de impressão para 54mm x 85mm.
  * Versão 1.3: Removida a seleção de modelo padrão, o primeiro modelo agora é pré-carregado automaticamente ao iniciar a página.
  * Versão 1.4: Adicionada verificação para evitar erro de estado da imagem e ajustada a posição vertical do nome, curso e local.
+ * Versão 1.5: Adicionados logs detalhados para depuração e corrigida a lógica da função getTransparentArea para garantir que a área transparente seja detectada corretamente.
  */
 
 // Variáveis globais
@@ -75,18 +76,21 @@ const data = {
 
 // Função para carregar um modelo a partir de uma URL
 function loadModelFromUrl(url) {
+    console.log('LOG: Tentando carregar modelo do crachá da URL:', url);
     if (!url) {
+        console.error('ERRO: URL do modelo do crachá é inválida ou nula.');
         return;
     }
     
     modelImage = new Image();
     modelImage.crossOrigin = 'anonymous';
     modelImage.onload = function() {
-        console.log('Modelo do crachá carregado com sucesso.');
+        console.log('LOG: Modelo do crachá carregado com sucesso. Analisando área transparente...');
         photoArea = getTransparentArea(modelImage);
         drawBadge();
     };
     modelImage.onerror = function() {
+        console.error('ERRO: Falha ao carregar o modelo da URL.');
         alert('Erro ao carregar o modelo da URL. Por favor, tente novamente ou carregue seu próprio modelo.');
     };
     modelImage.src = url;
@@ -151,6 +155,7 @@ function loadDefaultModel() {
 
 // Event Listeners para upload de arquivos
 document.getElementById('uploadModel').addEventListener('change', function(event) {
+    console.log('LOG: Upload de modelo de crachá iniciado.');
     const file = event.target.files[0];
     if (file) {
         if (file.type !== 'image/png') {
@@ -162,7 +167,7 @@ document.getElementById('uploadModel').addEventListener('change', function(event
         reader.onload = function(e) {
             modelImage = new Image();
             modelImage.onload = function() {
-                console.log('Modelo do crachá carregado com sucesso.');
+                console.log('LOG: Modelo do crachá local carregado com sucesso. Analisando área transparente...');
                 photoArea = getTransparentArea(modelImage);
                 drawBadge();
             };
@@ -173,10 +178,12 @@ document.getElementById('uploadModel').addEventListener('change', function(event
 });
 
 document.getElementById('uploadImage').addEventListener('change', function(event) {
+    console.log('LOG: Upload de imagem do usuário iniciado.');
     const file = event.target.files[0];
     if (file) {
         // Alerta para carregar o modelo antes da foto do usuário
         if (!modelImage) {
+            console.warn('AVISO: Tentativa de carregar foto do usuário antes do modelo do crachá.');
             alert('Por favor, carregue ou selecione um modelo de crachá primeiro.');
             event.target.value = ''; // Limpa o campo de arquivo
             return;
@@ -186,7 +193,7 @@ document.getElementById('uploadImage').addEventListener('change', function(event
         reader.onload = function(e) {
             userImage = new Image();
             userImage.onload = function() {
-                console.log('Imagem do usuário carregada com sucesso.');
+                console.log('LOG: Imagem do usuário carregada com sucesso. Processando a imagem...');
                 processUserImage();
             };
             userImage.src = e.target.result;
@@ -197,6 +204,7 @@ document.getElementById('uploadImage').addEventListener('change', function(event
 
 // Função para processar a imagem do usuário (aplica nitidez)
 function processUserImage() {
+    console.log('LOG: Iniciando processamento da imagem do usuário.');
     const tempCanvas = document.createElement('canvas');
     const tempCtx = tempCanvas.getContext('2d');
     
@@ -217,6 +225,7 @@ function processUserImage() {
     
     const processedImage = new Image();
     processedImage.onload = function() {
+        console.log('LOG: Processamento da imagem concluído. Atualizando imagem do usuário.');
         userImage = processedImage;
         resetImageControls();
         drawBadge();
@@ -226,6 +235,7 @@ function processUserImage() {
 
 // Função de filtro de nitidez
 function applySharpenFilter(imageData) {
+    // ... (código da função applySharpenFilter)
     const data = imageData.data;
     const width = imageData.width;
     const height = imageData.height;
@@ -245,7 +255,7 @@ function applySharpenFilter(imageData) {
                         sum += data[pixelIndex] * kernel[kernelIndex];
                     }
                 }
-                const outputIndex = (y * width + x) * 4 + 3;
+                const outputIndex = ((y * width + x) * 4) + c; // Corrigido aqui
                 outputData[outputIndex] = Math.min(255, Math.max(0, sum));
             }
             const alphaIndex = (y * width + x) * 4 + 3;
@@ -267,6 +277,7 @@ function resetImageControls() {
 
 // Função para encontrar a área transparente no modelo
 function getTransparentArea(image) {
+    console.log('LOG: Buscando área transparente no modelo...');
     const tempCanvas = document.createElement('canvas');
     const tempCtx = tempCanvas.getContext('2d');
     tempCanvas.width = image.width;
@@ -278,11 +289,13 @@ function getTransparentArea(image) {
     
     let minX = tempCanvas.width, minY = tempCanvas.height;
     let maxX = 0, maxY = 0;
+    let foundTransparent = false;
     
     for (let y = 0; y < tempCanvas.height; y++) {
         for (let x = 0; x < tempCanvas.width; x++) {
             const alpha = data[((y * tempCanvas.width) + x) * 4 + 3];
             if (alpha === 0) {
+                foundTransparent = true;
                 if (x < minX) minX = x;
                 if (y < minY) minY = y;
                 if (x > maxX) maxX = x;
@@ -291,6 +304,11 @@ function getTransparentArea(image) {
         }
     }
     
+    if (!foundTransparent) {
+        console.error('ERRO: Nenhuma área transparente detectada no modelo. Certifique-se de que o arquivo é um PNG com transparência.');
+        return null; // Retorna null se não encontrar
+    }
+
     const photoArea = {
         x: minX,
         y: minY,
@@ -298,7 +316,7 @@ function getTransparentArea(image) {
         height: maxY - minY
     };
     
-    console.log('Área transparente detectada:', photoArea);
+    console.log('LOG: Área transparente detectada:', photoArea);
     return photoArea;
 }
 
@@ -385,18 +403,19 @@ function updateSliderValues() {
 
 // Função principal para desenhar o crachá
 function drawBadge() {
-    console.log('Iniciando o desenho do crachá...');
+    console.log('LOG: Iniciando o desenho do crachá...');
     ctx.clearRect(0, 0, canvas.width / SCALE_FACTOR, canvas.height / SCALE_FACTOR);
 
     // Adiciona a verificação de estado da imagem
     if (!modelImage || !modelImage.complete || modelImage.naturalWidth === 0) {
-        console.log('Modelo do crachá não está disponível ou não foi carregado completamente.');
+        console.log('LOG: Modelo do crachá não está disponível ou não foi carregado completamente.');
         return;
     }
 
     // Desenha a foto do usuário se existir e a área transparente tiver sido detectada
     if (userImage && photoArea) {
-        console.log('Desenhando imagem do usuário. Posição:', imagePosition, 'Zoom:', imageZoom);
+        console.log('LOG: Desenhando imagem do usuário. Posição:', imagePosition, 'Zoom:', imageZoom);
+        console.log('LOG: Área da foto detectada para desenho:', photoArea);
         ctx.filter = `brightness(${100 + parseInt(document.getElementById('brightness').value)}%) contrast(${100 + parseInt(document.getElementById('contrast').value)}%)`;
         
         // --- INÍCIO: LÓGICA DE DESENHO MELHORADA ---
@@ -438,11 +457,11 @@ function drawBadge() {
         
         ctx.filter = 'none';
     } else {
-        console.log('Não foi possível desenhar a imagem do usuário. Certifique-se de que o modelo do crachá e a imagem do usuário foram carregados.');
+        console.log('AVISO: Não foi possível desenhar a imagem do usuário. Certifique-se de que o modelo do crachá e a imagem do usuário foram carregados e que a área transparente foi detectada.');
     }
 
     // Desenha o modelo por cima da foto
-    console.log('Desenhando modelo do crachá.');
+    console.log('LOG: Desenhando modelo do crachá.');
     ctx.drawImage(modelImage, 0, 0, canvas.width / SCALE_FACTOR, canvas.height / SCALE_FACTOR);
     
     // Desenha os textos
@@ -476,7 +495,7 @@ function drawBadge() {
     ctx.font = `${locationSize}px Arial, sans-serif`;
     ctx.fillText(location, (canvas.width / SCALE_FACTOR) / 2, locationY);
 
-    console.log('Desenho do crachá concluído.');
+    console.log('LOG: Desenho do crachá concluído.');
 }
 
 // Event Listeners para arrastar a imagem
@@ -491,6 +510,7 @@ canvas.addEventListener('mousedown', function(e) {
         startX = mouseX - imagePosition.x;
         startY = mouseY - imagePosition.y;
         canvas.style.cursor = 'grabbing';
+        console.log('LOG: Arrastando a imagem iniciado.');
     }
 });
 
@@ -514,6 +534,7 @@ canvas.addEventListener('mousemove', function(e) {
 canvas.addEventListener('mouseup', function() {
     isDragging = false;
     canvas.style.cursor = 'grab';
+    console.log('LOG: Arrastando a imagem parado.');
 });
 
 canvas.addEventListener('mouseleave', function() {
@@ -523,6 +544,7 @@ canvas.addEventListener('mouseleave', function() {
 
 // Event Listeners para gerar e imprimir
 document.getElementById('generateCard').addEventListener('click', function() {
+    console.log('LOG: Botão "Gerar Crachá" clicado.');
     if (userImage && modelImage) {
         document.getElementById('downloadSection').style.display = 'block';
         createDownloadLink();
@@ -532,6 +554,7 @@ document.getElementById('generateCard').addEventListener('click', function() {
 });
 
 document.getElementById('printCard').addEventListener('click', function() {
+    console.log('LOG: Botão "Imprimir" clicado.');
     if (userImage && modelImage) {
         drawBadge();
         window.print();
@@ -541,6 +564,7 @@ document.getElementById('printCard').addEventListener('click', function() {
 });
 
 function createDownloadLink() {
+    console.log('LOG: Criando link para download do crachá.');
     const printCanvas = document.createElement('canvas');
     printCanvas.width = PRINT_WIDTH_PX;
     printCanvas.height = PRINT_HEIGHT_PX;
@@ -557,6 +581,11 @@ function createDownloadLink() {
             printCtx.drawImage(tempModel, 0, 0, printCanvas.width, printCanvas.height);
             
             const area = getTransparentArea(tempModel);
+            if (!area) {
+                console.error('ERRO: Não foi possível gerar o crachá de impressão. A área transparente do modelo não foi detectada.');
+                alert('Erro na geração do crachá para impressão. Por favor, verifique o modelo.');
+                return;
+            }
             
             const userAspect = userImage.width / userImage.height;
             const photoAspect = area.width / area.height;
