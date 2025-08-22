@@ -7,6 +7,9 @@
  * Use o formato "Versão [número]: [Descrição da modificação]".
  * Mantenha a lista limitada às 4 últimas alterações para clareza e concisão.
  *
+ * Versão 2.5: Correção da lógica de posicionamento da imagem.
+ * - Centralização da imagem do usuário dentro da área de transparência detectada.
+ * - Ajuste da escala e posicionamento para garantir que a imagem seja visível.
  * Versão 2.4: Adição de logs de depuração detalhados.
  * - Inseridos 5 novos logs para rastrear dimensões e coordenadas de desenho.
  * - Auxilia na identificação de erros de cálculo no posicionamento e clipping da imagem.
@@ -14,8 +17,6 @@
  * - Centralização e ajuste de tamanho da imagem (50% da largura do crachá).
  * - Lógica aprimorada para exibir a imagem atrás do modelo (com transparência).
  * - Adicionados novos logs para rastreamento detalhado da renderização.
- * Versão 2.2: Refatoração para buscar dados de um arquivo JSON externo.
- * Versão 2.1: Separação do código JavaScript principal e eventos.
  */
 
 class BadgeGenerator {
@@ -446,13 +447,11 @@ class BadgeGenerator {
         const contrast = parseInt(document.getElementById('contrast').value);
         this.ctx.filter = `brightness(${100 + brightness}%) contrast(${100 + contrast}%)`;
 
-        const canvasWidth = this.canvas.width / this.SCALE_FACTOR;
-        
-        const userDrawWidth = canvasWidth * 0.5 * this.imageZoom;
+        const userDrawWidth = (this.canvas.width / this.SCALE_FACTOR) * 0.5 * this.imageZoom;
         const userDrawHeight = userDrawWidth / (this.userImage.width / this.userImage.height);
         
-        const userDrawX = (canvasWidth / 2) - (userDrawWidth / 2) + this.imagePosition.x;
-        const userDrawY = (this.canvas.height / this.SCALE_FACTOR / 2) - (userDrawHeight / 2) + this.imagePosition.y;
+        const userDrawX = this.photoArea.x + (this.photoArea.width / 2) - (userDrawWidth / 2) + this.imagePosition.x;
+        const userDrawY = this.photoArea.y + (this.photoArea.height / 2) - (userDrawHeight / 2) + this.imagePosition.y;
 
         console.log(`[LOG] Coordenadas de desenho: X=${userDrawX}, Y=${userDrawY}`);
         console.log(`[LOG] Dimensões de desenho: Largura=${userDrawWidth}, Altura=${userDrawHeight}`);
@@ -579,8 +578,8 @@ class BadgeGenerator {
         const userDrawWidth = canvasWidth * 0.5 * this.imageZoom;
         const userDrawHeight = userDrawWidth / (this.userImage.width / this.userImage.height);
         
-        const userDrawX = (canvasWidth / 2) - (userDrawWidth / 2) + this.imagePosition.x;
-        const userDrawY = (this.canvas.height / this.SCALE_FACTOR / 2) - (userDrawHeight / 2) + this.imagePosition.y;
+        const userDrawX = this.photoArea.x + (this.photoArea.width / 2) - (userDrawWidth / 2) + this.imagePosition.x;
+        const userDrawY = this.photoArea.y + (this.photoArea.height / 2) - (userDrawHeight / 2) + this.imagePosition.y;
         
         if (this.hasTransparency && !inFront && this.photoArea) {
             printCtx.save();
