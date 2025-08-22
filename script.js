@@ -7,11 +7,13 @@
  * Use o formato "Versão [número]: [Descrição da modificação]".
  * Mantenha a lista limitada às 4 últimas alterações para clareza e concisão.
  *
+ * Versão 3.2: Correção de posicionamento e arrasto da imagem.
+ * - Refatoração para unificar a lógica de escala, usando as dimensões visuais (300x400) do canvas.
+ * - Coordenadas da área de transparência agora são convertidas para a escala visual antes dos cálculos.
+ * - A lógica de arrasto foi corrigida para refletir a nova escala de cálculo.
  * Versão 3.1: Implementação de pica.js e correção da lógica de desenho.
  * - Adicionada a biblioteca pica.js para redimensionamento de imagem de alta qualidade.
  * - Refatorada a função processUserImage() para usar pica.js.
- * - Lógica de posicionamento em drawUserImageBehind corrigida para alinhar a imagem redimensionada com a área de transparência.
- * - Logs de depuração adicionais para o novo fluxo de redimensionamento.
  * Versão 3.0: Correção do cálculo de posicionamento e arrasto.
  * - Centralização da imagem do usuário ajustada para dentro do frame de transparência.
  * - Lógica de arrasto (drag and drop) corrigida, usando a escala correta do canvas para converter coordenadas do mouse.
@@ -270,7 +272,7 @@ class BadgeGenerator {
         
         try {
             const result = await this.pica.resize(this.userImage, resizedCanvas, {
-                quality: 3, // Usando o melhor algoritmo de qualidade (Lanczos)
+                quality: 3,
             });
 
             console.log('[DEBUG-pica] Redimensionamento concluído.');
@@ -285,15 +287,11 @@ class BadgeGenerator {
             processedImage.src = result.toDataURL('image/png');
         } catch (error) {
             console.error('[ERRO-pica] Falha ao redimensionar a imagem:', error);
-            // Fallback para redimensionamento manual se a biblioteca falhar
             this.userImage.width = targetWidth;
             this.userImage.height = targetHeight;
             this.drawBadge();
         }
     }
-
-    // A função applySharpenFilter não é mais necessária, pois o pica.js já faz um trabalho superior de nitidez.
-    // A função foi removida para simplificar o código.
 
     analyzeTransparency() {
         if (!this.modelImage) return;
@@ -439,22 +437,23 @@ class BadgeGenerator {
         const contrast = parseInt(document.getElementById('contrast').value);
         this.ctx.filter = `brightness(${100 + brightness}%) contrast(${100 + contrast}%)`;
 
+        // Converte as coordenadas da área de transparência para a escala visual do canvas
         const photoAreaX = this.photoArea.x / this.SCALE_FACTOR;
         const photoAreaY = this.photoArea.y / this.SCALE_FACTOR;
         const photoAreaWidth = this.photoArea.width / this.SCALE_FACTOR;
         const photoAreaHeight = this.photoArea.height / this.SCALE_FACTOR;
         
+        // Dimensões da imagem do usuário já foram redimensionadas pelo pica.js
         const userDrawWidth = this.userImage.width * this.imageZoom;
         const userDrawHeight = this.userImage.height * this.imageZoom;
         
+        // Posicionamento da imagem com base na área de transparência, na escala visual
         const userDrawX = photoAreaX + (photoAreaWidth / 2) - (userDrawWidth / 2) + this.imagePosition.x;
         const userDrawY = photoAreaY + (photoAreaHeight / 2) - (userDrawHeight / 2) + this.imagePosition.y;
 
-        console.log(`[DEBUG-draw] Imagem do usuário (behind): X=${userDrawX}, Y=${userDrawY}, W=${userDrawWidth}, H=${userDrawHeight}`);
-        console.log(`[DEBUG-draw] Área de transparência: X=${photoAreaX}, Y=${photoAreaY}, W=${photoAreaWidth}, H=${photoAreaHeight}`);
-
         this.ctx.save();
         this.ctx.beginPath();
+        
         this.ctx.rect(photoAreaX, photoAreaY, photoAreaWidth, photoAreaHeight);
         this.ctx.clip();
         
@@ -479,8 +478,6 @@ class BadgeGenerator {
         
         const userDrawX = (canvasWidth / 2) - (userDrawWidth / 2) + this.imagePosition.x;
         const userDrawY = (this.canvas.height / this.SCALE_FACTOR / 2) - (userDrawHeight / 2) + this.imagePosition.y;
-
-        console.log(`[DEBUG-draw] Imagem do usuário (frente): X=${userDrawX}, Y=${userDrawY}, W=${userDrawWidth}, H=${userDrawHeight}`);
         
         this.ctx.drawImage(
             this.userImage,
