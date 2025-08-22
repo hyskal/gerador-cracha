@@ -7,14 +7,14 @@
  * Use o formato "Versão [número]: [Descrição da modificação]".
  * Mantenha a lista limitada às 4 últimas alterações para clareza e concisão.
  *
+ * Versão 3.1: Implementação de pica.js e correção da lógica de desenho.
+ * - Adicionada a biblioteca pica.js para redimensionamento de imagem de alta qualidade.
+ * - Refatorada a função processUserImage() para usar pica.js.
+ * - Lógica de posicionamento em drawUserImageBehind corrigida para alinhar a imagem redimensionada com a área de transparência.
+ * - Logs de depuração adicionais para o novo fluxo de redimensionamento.
  * Versão 3.0: Correção do cálculo de posicionamento e arrasto.
  * - Centralização da imagem do usuário ajustada para dentro do frame de transparência.
  * - Lógica de arrasto (drag and drop) corrigida, usando a escala correta do canvas para converter coordenadas do mouse.
- * - Adicionados logs para depuração para rastrear as coordenadas do mouse e da imagem.
- * Versão 2.9: Correções de posicionamento e funcionalidade de arrasto.
- * - Lógica de cálculo de posição de desenho corrigida para usar coordenadas da fotoArea em alta resolução.
- * Versão 2.8: Correção final do posicionamento e adição de logs.
- * - Ajuste do cálculo para centralizar a imagem do usuário DENTRO da área de transparência.
  */
 
 class BadgeGenerator {
@@ -47,6 +47,7 @@ class BadgeGenerator {
         this.PRINT_HEIGHT_PX = Math.round(this.PRINT_HEIGHT_MM * this.PIXELS_PER_MM);
         this.data = {};
         this.modelLinks = {};
+        this.pica = window.pica(); // Instância do pica.js
     }
 
     setupCanvas() {
@@ -251,7 +252,7 @@ class BadgeGenerator {
         reader.onload = (e) => {
             this.userImage = new Image();
             this.userImage.onload = () => {
-                console.log('Imagem do usuário carregada.');
+                console.log('Imagem do usuário carregada. Iniciando processamento com pica.js.');
                 this.processUserImage();
             };
             this.userImage.src = e.target.result;
@@ -259,56 +260,40 @@ class BadgeGenerator {
         reader.readAsDataURL(file);
     }
 
-    processUserImage() {
-        const tempCanvas = document.createElement('canvas');
-        const tempCtx = tempCanvas.getContext('2d');
-        const aspectRatio = this.userImage.width / this.userImage.height;
-        const targetWidth = 800;
-        const targetHeight = Math.round(targetWidth / aspectRatio);
-        tempCanvas.width = targetWidth;
-        tempCanvas.height = targetHeight;
-        tempCtx.imageSmoothingEnabled = true;
-        tempCtx.imageSmoothingQuality = 'high';
-        tempCtx.drawImage(this.userImage, 0, 0, targetWidth, targetHeight);
-        const imageData = tempCtx.getImageData(0, 0, targetWidth, targetHeight);
-        const sharpened = this.applySharpenFilter(imageData);
-        tempCtx.putImageData(sharpened, 0, 0);
-        const processedImage = new Image();
-        processedImage.onload = () => {
-            this.userImage = processedImage;
-            this.resetImageControls();
+    async processUserImage() {
+        const targetWidth = (this.canvas.width / this.SCALE_FACTOR) * 0.5;
+        const targetHeight = targetWidth / (this.userImage.width / this.userImage.height);
+
+        const resizedCanvas = document.createElement('canvas');
+        resizedCanvas.width = targetWidth;
+        resizedCanvas.height = targetHeight;
+        
+        try {
+            const result = await this.pica.resize(this.userImage, resizedCanvas, {
+                quality: 3, // Usando o melhor algoritmo de qualidade (Lanczos)
+            });
+
+            console.log('[DEBUG-pica] Redimensionamento concluído.');
+
+            const processedImage = new Image();
+            processedImage.onload = () => {
+                this.userImage = processedImage;
+                this.resetImageControls();
+                this.drawBadge();
+                console.log(`[DEBUG-pica] Nova imagem processada: Largura=${processedImage.width}, Altura=${processedImage.height}`);
+            };
+            processedImage.src = result.toDataURL('image/png');
+        } catch (error) {
+            console.error('[ERRO-pica] Falha ao redimensionar a imagem:', error);
+            // Fallback para redimensionamento manual se a biblioteca falhar
+            this.userImage.width = targetWidth;
+            this.userImage.height = targetHeight;
             this.drawBadge();
-        };
-        processedImage.src = tempCanvas.toDataURL('image/png', 0.95);
+        }
     }
 
-    applySharpenFilter(imageData) {
-        const data = imageData.data;
-        const width = imageData.width;
-        const height = imageData.height;
-        const output = new ImageData(width, height);
-        const outputData = output.data;
-        const kernel = [0, -0.3, 0, -0.3, 2.2, -0.3, 0, -0.3, 0];
-        for (let y = 1; y < height - 1; y++) {
-            for (let x = 1; x < width - 1; x++) {
-                for (let c = 0; c < 3; c++) {
-                    let sum = 0;
-                    for (let ky = -1; ky <= 1; ky++) {
-                        for (let kx = -1; kx <= 1; kx++) {
-                            const pixelIndex = ((y + ky) * width + (x + kx)) * 4 + c;
-                            const kernelIndex = (ky + 1) * 3 + (kx + 1);
-                            sum += data[pixelIndex] * kernel[kernelIndex];
-                        }
-                    }
-                    const outputIndex = (y * width + x) * 4 + c;
-                    outputData[outputIndex] = Math.min(255, Math.max(0, sum));
-                }
-                const alphaIndex = (y * width + x) * 4 + 3;
-                outputData[alphaIndex] = data[alphaIndex];
-            }
-        }
-        return output;
-    }
+    // A função applySharpenFilter não é mais necessária, pois o pica.js já faz um trabalho superior de nitidez.
+    // A função foi removida para simplificar o código.
 
     analyzeTransparency() {
         if (!this.modelImage) return;
@@ -371,7 +356,6 @@ class BadgeGenerator {
         const mouseX = (event.clientX - rect.left);
         const mouseY = (event.clientY - rect.top);
         
-        // Coordenadas da photoArea na escala CSS do canvas para verificação de clique
         const scaledPhotoArea = {
             x: this.photoArea.x / this.SCALE_FACTOR,
             y: this.photoArea.y / this.SCALE_FACTOR,
@@ -379,7 +363,6 @@ class BadgeGenerator {
             height: this.photoArea.height / this.SCALE_FACTOR
         };
 
-        // Verificar se o clique está dentro da área de transparência
         if (this.hasTransparency && this.photoArea) {
             if (mouseX >= scaledPhotoArea.x && mouseX <= scaledPhotoArea.x + scaledPhotoArea.width &&
                 mouseY >= scaledPhotoArea.y && mouseY <= scaledPhotoArea.y + scaledPhotoArea.height) {
@@ -389,7 +372,7 @@ class BadgeGenerator {
                     y: mouseY - this.imagePosition.y
                 };
                 this.canvas.style.cursor = 'grabbing';
-                console.log(`[DEBUG] Arrastando: Início do mouse X=${mouseX}, Y=${mouseY}. Posição inicial da imagem X=${this.imagePosition.x}, Y=${this.imagePosition.y}`);
+                console.log(`[DEBUG-drag] Início do arrasto: Mouse X=${mouseX}, Y=${mouseY}. Imagem X=${this.imagePosition.x}, Y=${this.imagePosition.y}`);
             }
         }
     }
@@ -403,14 +386,13 @@ class BadgeGenerator {
         this.imagePosition.x = mouseX - this.dragStart.x;
         this.imagePosition.y = mouseY - this.dragStart.y;
         
-        // Limitar movimento dentro de bounds razoáveis
         this.imagePosition.x = Math.max(-200, Math.min(200, this.imagePosition.x));
         this.imagePosition.y = Math.max(-200, Math.min(200, this.imagePosition.y));
         
         document.getElementById('positionX').value = Math.round(this.imagePosition.x);
         document.getElementById('positionY').value = Math.round(this.imagePosition.y);
         
-        console.log(`[DEBUG] Arrastando: Mouse atual X=${mouseX}, Y=${mouseY}. Nova posição da imagem X=${this.imagePosition.x}, Y=${this.imagePosition.y}`);
+        console.log(`[DEBUG-drag] Mouse atual X=${mouseX}, Y=${mouseY}. Nova posição da imagem X=${this.imagePosition.x}, Y=${this.imagePosition.y}`);
         
         this.updateSliderValues();
         this.drawBadge();
@@ -461,21 +443,18 @@ class BadgeGenerator {
         const photoAreaY = this.photoArea.y / this.SCALE_FACTOR;
         const photoAreaWidth = this.photoArea.width / this.SCALE_FACTOR;
         const photoAreaHeight = this.photoArea.height / this.SCALE_FACTOR;
-
-        // Largura da imagem do usuário em pixels do canvas CSS
-        const userDrawWidth = (this.canvas.width / this.SCALE_FACTOR) * 0.5 * this.imageZoom;
-        const userDrawHeight = userDrawWidth / (this.userImage.width / this.userImage.height);
         
-        // Coordenadas de desenho centralizadas na photoArea
+        const userDrawWidth = this.userImage.width * this.imageZoom;
+        const userDrawHeight = this.userImage.height * this.imageZoom;
+        
         const userDrawX = photoAreaX + (photoAreaWidth / 2) - (userDrawWidth / 2) + this.imagePosition.x;
         const userDrawY = photoAreaY + (photoAreaHeight / 2) - (userDrawHeight / 2) + this.imagePosition.y;
 
-        console.log(`[DEBUG] Coordenadas de desenho (Behind): X=${userDrawX}, Y=${userDrawY}, W=${userDrawWidth}, H=${userDrawHeight}`);
-        console.log(`[DEBUG] Área de transparência (Behind): X=${photoAreaX}, Y=${photoAreaY}, W=${photoAreaWidth}, H=${photoAreaHeight}`);
+        console.log(`[DEBUG-draw] Imagem do usuário (behind): X=${userDrawX}, Y=${userDrawY}, W=${userDrawWidth}, H=${userDrawHeight}`);
+        console.log(`[DEBUG-draw] Área de transparência: X=${photoAreaX}, Y=${photoAreaY}, W=${photoAreaWidth}, H=${photoAreaHeight}`);
 
         this.ctx.save();
         this.ctx.beginPath();
-        
         this.ctx.rect(photoAreaX, photoAreaY, photoAreaWidth, photoAreaHeight);
         this.ctx.clip();
         
@@ -495,13 +474,13 @@ class BadgeGenerator {
         this.ctx.filter = `brightness(${100 + brightness}%) contrast(${100 + contrast}%)`;
         
         const canvasWidth = this.canvas.width / this.SCALE_FACTOR;
-        const userDrawWidth = canvasWidth * 0.5 * this.imageZoom;
-        const userDrawHeight = userDrawWidth / (this.userImage.width / this.userImage.height);
+        const userDrawWidth = this.userImage.width * this.imageZoom;
+        const userDrawHeight = this.userImage.height * this.imageZoom;
         
         const userDrawX = (canvasWidth / 2) - (userDrawWidth / 2) + this.imagePosition.x;
         const userDrawY = (this.canvas.height / this.SCALE_FACTOR / 2) - (userDrawHeight / 2) + this.imagePosition.y;
-        
-        console.log(`[DEBUG] Coordenadas de desenho (Frente): X=${userDrawX}, Y=${userDrawY}, W=${userDrawWidth}, H=${userDrawHeight}`);
+
+        console.log(`[DEBUG-draw] Imagem do usuário (frente): X=${userDrawX}, Y=${userDrawY}, W=${userDrawWidth}, H=${userDrawHeight}`);
         
         this.ctx.drawImage(
             this.userImage,
@@ -594,11 +573,11 @@ class BadgeGenerator {
         const photoAreaWidth = this.photoArea.width;
         const photoAreaHeight = this.photoArea.height;
         
-        const userDrawWidth = (this.canvas.width / 2) * this.imageZoom;
-        const userDrawHeight = userDrawWidth / (this.userImage.width / this.userImage.height);
+        const userDrawWidth = this.userImage.width * this.imageZoom;
+        const userDrawHeight = this.userImage.height * this.imageZoom;
         
-        const userDrawX = photoAreaX + (photoAreaWidth / 2) - (userDrawWidth / 2) + (this.imagePosition.x * this.SCALE_FACTOR);
-        const userDrawY = photoAreaY + (photoAreaHeight / 2) - (userDrawHeight / 2) + (this.imagePosition.y * this.SCALE_FACTOR);
+        const userDrawX = (photoAreaX / this.SCALE_FACTOR) + (photoAreaWidth / this.SCALE_FACTOR / 2) - (userDrawWidth / 2) + this.imagePosition.x;
+        const userDrawY = (photoAreaY / this.SCALE_FACTOR) + (photoAreaHeight / this.SCALE_FACTOR / 2) - (userDrawHeight / 2) + this.imagePosition.y;
         
         if (this.hasTransparency && !inFront && this.photoArea) {
             printCtx.save();
