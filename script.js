@@ -10,6 +10,7 @@
 /* * Versão 1.1: Adicionado CHANGELOG no início do arquivo.
  * Versão 1.2: Implementada lógica para mover a foto com o mouse, adicionados JSON para listas suspensas de cursos e locais com opção "Outro (especificar)", reposicionado os campos de texto no crachá e corrigido as dimensões de impressão para 54mm x 85mm.
  * Versão 1.3: Removida a seleção de modelo padrão, o primeiro modelo agora é pré-carregado automaticamente ao iniciar a página.
+ * Versão 1.4: Adicionada verificação para evitar erro de estado da imagem e ajustada a posição vertical do nome, curso e local.
  */
 
 // Variáveis globais
@@ -387,6 +388,12 @@ function drawBadge() {
     console.log('Iniciando o desenho do crachá...');
     ctx.clearRect(0, 0, canvas.width / SCALE_FACTOR, canvas.height / SCALE_FACTOR);
 
+    // Adiciona a verificação de estado da imagem
+    if (!modelImage || !modelImage.complete || modelImage.naturalWidth === 0) {
+        console.log('Modelo do crachá não está disponível ou não foi carregado completamente.');
+        return;
+    }
+
     // Desenha a foto do usuário se existir e a área transparente tiver sido detectada
     if (userImage && photoArea) {
         console.log('Desenhando imagem do usuário. Posição:', imagePosition, 'Zoom:', imageZoom);
@@ -435,12 +442,8 @@ function drawBadge() {
     }
 
     // Desenha o modelo por cima da foto
-    if (modelImage) {
-        console.log('Desenhando modelo do crachá.');
-        ctx.drawImage(modelImage, 0, 0, canvas.width / SCALE_FACTOR, canvas.height / SCALE_FACTOR);
-    } else {
-        console.log('Modelo do crachá não está disponível.');
-    }
+    console.log('Desenhando modelo do crachá.');
+    ctx.drawImage(modelImage, 0, 0, canvas.width / SCALE_FACTOR, canvas.height / SCALE_FACTOR);
     
     // Desenha os textos
     const name = document.getElementById('name').value;
@@ -459,10 +462,10 @@ function drawBadge() {
     ctx.fillStyle = '#1e3a8a';
     ctx.textAlign = 'center';
 
-    // Y-coordinates adjusted to move text up
-    const nameY = 240; 
-    const courseY = 265; 
-    const locationY = 290;
+    // Ajuste das coordenadas Y conforme solicitado
+    const nameY = 305; 
+    const courseY = 320; 
+    const locationY = 335;
     
     ctx.font = `bold ${nameSize}px Arial, sans-serif`;
     ctx.fillText(name, (canvas.width / SCALE_FACTOR) / 2, nameY);
@@ -596,9 +599,9 @@ function createDownloadLink() {
             printCtx.textAlign = 'center';
             
             // New Y-coordinates for print
-            const namePrintY = 240 * (PRINT_HEIGHT_PX / (canvas.height / SCALE_FACTOR));
-            const coursePrintY = 265 * (PRINT_HEIGHT_PX / (canvas.height / SCALE_FACTOR));
-            const locationPrintY = 290 * (PRINT_HEIGHT_PX / (canvas.height / SCALE_FACTOR));
+            const namePrintY = 305 * (PRINT_HEIGHT_PX / (canvas.height / SCALE_FACTOR));
+            const coursePrintY = 320 * (PRINT_HEIGHT_PX / (canvas.height / SCALE_FACTOR));
+            const locationPrintY = 335 * (PRINT_HEIGHT_PX / (canvas.height / SCALE_FACTOR));
             
             printCtx.font = `bold ${nameSize}px Arial, sans-serif`;
             printCtx.fillText(name, PRINT_WIDTH_PX / 2, namePrintY);
