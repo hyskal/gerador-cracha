@@ -1,7 +1,13 @@
 /**
- * GERADOR DE CRACHÁ CETEP - VERSÃO OTIMIZADA
- * 
- * CHANGELOG:
+ * CHANGELOG
+ *
+ * Instruções para Revisores:
+ * Este bloco de comentários registra as modificações significativas do arquivo.
+ * Cada nova modificação deve ser adicionada no topo da lista.
+ * Use o formato "Versão [número]: [Descrição da modificação]".
+ * Mantenha a lista limitada às 4 últimas alterações para clareza e concisão.
+ *
+ * Versão 2.1: Separação do código JavaScript principal e eventos.
  * Versão 2.0: Código completamente refatorado para melhor organização e performance
  * - Correção da detecção de área transparente 
  * - Melhoria no sistema de arrastar imagem com mouse
@@ -133,8 +139,8 @@ class BadgeGenerator {
         const locationSelect = document.getElementById('locationSelect');
         
         // Limpar dropdowns
-        courseSelect.innerHTML = '';
-        locationSelect.innerHTML = '';
+        courseSelect.innerHTML = '<option value="">Selecione um curso</option>';
+        locationSelect.innerHTML = '<option value="">Selecione um local</option>';
         
         // Preencher cursos
         this.data.courses.forEach(course => {
