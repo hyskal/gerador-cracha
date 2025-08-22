@@ -18,8 +18,7 @@
                 <h3>📄 Modelo do Crachá (PNG)</h3>
                 <div class="control-group">
                     <label for="modelSelect">Escolher Modelo</label>
-                    <select id="modelSelect" class="select-input">
-                        </select>
+                    <select id="modelSelect" class="select-input"></select>
                 </div>
                 
                 <p class="help-text">
@@ -46,6 +45,15 @@
 
         <div class="canvas-container">
             <canvas id="canvas" width="300" height="400"></canvas>
+            <div class="zoom-controls">
+                <label>🔍 Zoom da Imagem</label>
+                <div class="zoom-buttons">
+                    <button type="button" id="zoomOut" class="zoom-btn">−</button>
+                    <input type="range" id="zoom" class="slider" min="50" max="200" value="100">
+                    <button type="button" id="zoomIn" class="zoom-btn">+</button>
+                </div>
+                <div class="slider-value" id="zoomValue">100%</div>
+            </div>
         </div>
 
         <div class="controls-panel">
@@ -83,16 +91,6 @@
                         <div class="slider-value" id="positionYValue">0</div>
                     </div>
                 </div>
-                
-                <div class="sub-control">
-                    <label>🔍 Zoom da Imagem</label>
-                    <div class="zoom-controls">
-                        <button type="button" id="zoomOut" class="zoom-btn">−</button>
-                        <input type="range" id="zoom" class="slider" min="50" max="200" value="100">
-                        <button type="button" id="zoomIn" class="zoom-btn">+</button>
-                    </div>
-                    <div class="slider-value" id="zoomValue">100%</div>
-                </div>
             </div>
         </div>
 
@@ -108,29 +106,20 @@
             </div>
 
             <div class="control-group">
-                <label for="roleSelect">Função/Curso</label>
-                <select id="roleSelect" class="select-input">
-                    <option value="">Selecione um curso</option>
-                    <option value="TÉCNICO EM ANÁLISES CLÍNICAS">TÉCNICO EM ANÁLISES CLÍNICAS</option>
-                    <option value="TÉCNICO EM NUTRIÇÃO E DIETÉTICA">TÉCNICO EM NUTRIÇÃO E DIETÉTICA</option>
-                    <option value="TÉCNICO EM SERVIÇOS JURÍDICOS">TÉCNICO EM SERVIÇOS JURÍDICOS</option>
-                    <option value="TÉCNICO EM INFORMÁTICA">TÉCNICO EM INFORMÁTICA</option>
-                    <option value="TÉCNICO EM AGROECOLOGIA">TÉCNICO EM AGROECOLOGIA</option>
-                    <option value="TÉCNICO EM ADMINISTRAÇÃO">TÉCNICO EM ADMINISTRAÇÃO</option>
-                    <option value="TÉCNICO EM SEGURANÇA DO TRABALHO">TÉCNICO EM SEGURANÇA DO TRABALHO</option>
-                    <option value="custom">Outro (personalizado)</option>
-                </select>
-                <input type="text" id="roleCustom" class="text-input" placeholder="Digite a função personalizada" style="display: none; margin-top: 0.5rem;">
+                <label for="roleSelect">Curso</label>
+                <select id="courseSelect" class="select-input"></select>
+                <input type="text" id="courseCustom" class="text-input" placeholder="Digite o curso personalizado" style="display: none; margin-top: 0.5rem;">
                 <div class="font-size-control">
-                    <label for="roleSize" class="sub-label">Tamanho da fonte:</label>
-                    <input type="range" id="roleSize" class="slider" min="10" max="18" value="14">
-                    <div class="slider-value" id="roleSizeValue">14px</div>
+                    <label for="courseSize" class="sub-label">Tamanho da fonte:</label>
+                    <input type="range" id="courseSize" class="slider" min="10" max="18" value="14">
+                    <div class="slider-value" id="courseSizeValue">14px</div>
                 </div>
             </div>
 
             <div class="control-group">
-                <label for="location">Local</label>
-                <input type="text" id="location" class="text-input" placeholder="Ex: ALAGOINHAS">
+                <label for="locationSelect">Local</label>
+                <select id="locationSelect" class="select-input"></select>
+                <input type="text" id="locationCustom" class="text-input" placeholder="Digite o local personalizado" style="display: none; margin-top: 0.5rem;">
                 <div class="font-size-control">
                     <label for="locationSize" class="sub-label">Tamanho da fonte:</label>
                     <input type="range" id="locationSize" class="slider" min="12" max="20" value="16">
