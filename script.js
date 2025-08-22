@@ -7,17 +7,17 @@
  * Use o formato "Versão [número]: [Descrição da modificação]".
  * Mantenha a lista limitada às 4 últimas alterações para clareza e concisão.
  *
+ * Versão 2.9: Correções de posicionamento e funcionalidade de arrasto.
+ * - Lógica de cálculo de posição de desenho corrigida para usar coordenadas da fotoArea em alta resolução.
+ * - Funcionalidade de arrasto (drag and drop) restaurada e aprimorada para funcionar dentro da área de recorte.
+ * - Adicionados logs detalhados para depurar as coordenadas de arrasto e posicionamento da imagem.
  * Versão 2.8: Correção final do posicionamento e adição de logs.
  * - Ajuste do cálculo para centralizar a imagem do usuário DENTRO da área de transparência.
  * - Adicionados 5 novos logs para depuração detalhada, verificando as coordenadas após a correção.
  * - A lógica agora garante que a imagem sempre caia dentro do recorte.
  * Versão 2.7: Correção definitiva da lógica de posicionamento da imagem.
  * - Ajuste do cálculo para centralizar a imagem do usuário usando as coordenadas da área de transparência em alta resolução (com SCALE_FACTOR).
- * - Garante que a imagem seja desenhada corretamente dentro do recorte.
- * Versão 2.6: Ajuste de posicionamento dos textos no crachá.
- * - Alteradas as coordenadas Y dos campos "Nome", "Curso" e "Local" para exibir o texto mais abaixo e com mais espaçamento.
  */
-
 class BadgeGenerator {
     constructor() {
         this.initializeProperties();
@@ -369,38 +369,48 @@ class BadgeGenerator {
     startDrag(event) {
         if (!this.userImage) return;
         const rect = this.canvas.getBoundingClientRect();
-        const mouseX = ((event.clientX - rect.left) / rect.width) * (this.canvas.width / this.SCALE_FACTOR);
-        const mouseY = ((event.clientY - rect.top) / rect.height) * (this.canvas.height / this.SCALE_FACTOR);
+        const mouseX = (event.clientX - rect.left) * (this.canvas.width / rect.width);
+        const mouseY = (event.clientY - rect.top) * (this.canvas.height / rect.height);
+        
         let canDrag = false;
         if (this.hasTransparency && this.photoArea) {
             canDrag = mouseX >= this.photoArea.x && mouseX <= this.photoArea.x + this.photoArea.width &&
                      mouseY >= this.photoArea.y && mouseY <= this.photoArea.y + this.photoArea.height;
         } else {
-            canDrag = mouseX >= 50 && mouseX <= this.canvas.width / this.SCALE_FACTOR - 50 &&
-                     mouseY >= 50 && mouseY <= this.canvas.height / this.SCALE_FACTOR - 50;
+            // Lógica para arrasto em qualquer lugar sem transparência
+            const canvasWidth = this.canvas.width / this.SCALE_FACTOR;
+            const canvasHeight = this.canvas.height / this.SCALE_FACTOR;
+            canDrag = mouseX >= 0 && mouseX <= canvasWidth && mouseY >= 0 && mouseY <= canvasHeight;
         }
+
         if (canDrag) {
             this.isDragging = true;
             this.dragStart = {
-                x: mouseX - this.imagePosition.x,
-                y: mouseY - this.imagePosition.y
+                x: mouseX - this.imagePosition.x * this.SCALE_FACTOR,
+                y: mouseY - this.imagePosition.y * this.SCALE_FACTOR
             };
             this.canvas.style.cursor = 'grabbing';
-            console.log('Iniciando arrasto.');
+            console.log(`[DEBUG] Arrastando: Início do mouse X=${mouseX}, Y=${mouseY}. Posição inicial da imagem X=${this.imagePosition.x}, Y=${this.imagePosition.y}`);
         }
     }
 
     handleDrag(event) {
         if (!this.isDragging) return;
         const rect = this.canvas.getBoundingClientRect();
-        const mouseX = ((event.clientX - rect.left) / rect.width) * (this.canvas.width / this.SCALE_FACTOR);
-        const mouseY = ((event.clientY - rect.top) / rect.height) * (this.canvas.height / this.SCALE_FACTOR);
-        this.imagePosition.x = mouseX - this.dragStart.x;
-        this.imagePosition.y = mouseY - this.dragStart.y;
+        const mouseX = (event.clientX - rect.left) * (this.canvas.width / rect.width);
+        const mouseY = (event.clientY - rect.top) * (this.canvas.height / rect.height);
+        
+        this.imagePosition.x = (mouseX - this.dragStart.x) / this.SCALE_FACTOR;
+        this.imagePosition.y = (mouseY - this.dragStart.y) / this.SCALE_FACTOR;
+
         this.imagePosition.x = Math.max(-200, Math.min(200, this.imagePosition.x));
         this.imagePosition.y = Math.max(-200, Math.min(200, this.imagePosition.y));
+        
         document.getElementById('positionX').value = Math.round(this.imagePosition.x);
         document.getElementById('positionY').value = Math.round(this.imagePosition.y);
+        
+        console.log(`[DEBUG] Arrastando: Mouse atual X=${mouseX}, Y=${mouseY}. Nova posição da imagem X=${this.imagePosition.x}, Y=${this.imagePosition.y}`);
+        
         this.updateSliderValues();
         this.drawBadge();
     }
@@ -446,38 +456,28 @@ class BadgeGenerator {
         const contrast = parseInt(document.getElementById('contrast').value);
         this.ctx.filter = `brightness(${100 + brightness}%) contrast(${100 + contrast}%)`;
 
-        // Coordenadas e dimensões da área de transparência em alta resolução (já com SCALE_FACTOR)
-        const photoX = this.photoArea.x;
-        const photoY = this.photoArea.y;
-        const photoWidth = this.photoArea.width;
-        const photoHeight = this.photoArea.height;
-
-        // Largura da imagem do usuário em alta resolução (50% do canvas * zoom)
-        const userDrawWidth = (this.canvas.width / 2) * this.imageZoom;
+        const userDrawWidth = (this.canvas.width / this.SCALE_FACTOR) * 0.5 * this.imageZoom;
         const userDrawHeight = userDrawWidth / (this.userImage.width / this.userImage.height);
         
-        // As coordenadas de desenho agora usam a área de transparência como referência
-        const userDrawX = photoX + (photoWidth / 2) - (userDrawWidth / 2) + (this.imagePosition.x * this.SCALE_FACTOR);
-        const userDrawY = photoY + (photoHeight / 2) - (userDrawHeight / 2) + (this.imagePosition.y * this.SCALE_FACTOR);
-
-        console.log(`[LOG] Foto Area (HR): X=${photoX}, Y=${photoY}, W=${photoWidth}, H=${photoHeight}`);
-        console.log(`[LOG] Imagem Usuario (HR): W=${userDrawWidth}, H=${userDrawHeight}`);
-        console.log(`[LOG] Posicionamento (HR): X=${userDrawX}, Y=${userDrawY}`);
+        const photoX = this.photoArea.x / this.SCALE_FACTOR;
+        const photoY = this.photoArea.y / this.SCALE_FACTOR;
+        const photoWidth = this.photoArea.width / this.SCALE_FACTOR;
+        const photoHeight = this.photoArea.height / this.SCALE_FACTOR;
         
+        const userDrawX = photoX + (photoWidth / 2) - (userDrawWidth / 2) + this.imagePosition.x;
+        const userDrawY = photoY + (photoHeight / 2) - (userDrawHeight / 2) + this.imagePosition.y;
+
+        console.log(`[DEBUG] drawUserImageBehind: photoArea (Canvas): X=${photoX}, Y=${photoY}, W=${photoWidth}, H=${photoHeight}`);
+        console.log(`[DEBUG] drawUserImageBehind: userImage (Canvas): X=${userDrawX}, Y=${userDrawY}, W=${userDrawWidth}, H=${userDrawHeight}`);
+
         this.ctx.save();
         this.ctx.beginPath();
-        
-        // A área de recorte precisa ser em pixels do canvas base (sem scale factor)
-        // Por isso, dividimos as coordenadas por SCALE_FACTOR
-        this.ctx.rect(photoX / this.SCALE_FACTOR, photoY / this.SCALE_FACTOR, photoWidth / this.SCALE_FACTOR, photoHeight / this.SCALE_FACTOR);
+        this.ctx.rect(photoX, photoY, photoWidth, photoHeight);
         this.ctx.clip();
         
-        // As coordenadas e dimensões do drawImage também precisam ser na escala do canvas
-        // Mas a lógica anterior já fazia isso, o problema era o cálculo.
-        // Vamos manter o cálculo em alta resolução e desenhar na mesma escala.
         this.ctx.drawImage(
             this.userImage,
-            userDrawX / this.SCALE_FACTOR, userDrawY / this.SCALE_FACTOR, userDrawWidth / this.SCALE_FACTOR, userDrawHeight / this.SCALE_FACTOR
+            userDrawX, userDrawY, userDrawWidth, userDrawHeight
         );
         
         this.ctx.restore();
@@ -497,8 +497,7 @@ class BadgeGenerator {
         const userDrawX = (canvasWidth / 2) - (userDrawWidth / 2) + this.imagePosition.x;
         const userDrawY = (this.canvas.height / this.SCALE_FACTOR / 2) - (userDrawHeight / 2) + this.imagePosition.y;
 
-        console.log(`[LOG] Coordenadas de desenho (Frente): X=${userDrawX}, Y=${userDrawY}`);
-        console.log(`[LOG] Dimensões de desenho (Frente): Largura=${userDrawWidth}, Altura=${userDrawHeight}`);
+        console.log(`[DEBUG] drawUserImageInFront: userImage (Canvas): X=${userDrawX}, Y=${userDrawY}, W=${userDrawWidth}, H=${userDrawHeight}`);
         
         this.ctx.drawImage(
             this.userImage,
@@ -586,14 +585,14 @@ class BadgeGenerator {
         const contrast = parseInt(document.getElementById('contrast').value);
         printCtx.filter = `brightness(${100 + brightness}%) contrast(${100 + contrast}%)`;
         
+        const userDrawWidth = (this.canvas.width / 2) * this.imageZoom;
+        const userDrawHeight = userDrawWidth / (this.userImage.width / this.userImage.height);
+        
         const photoX = this.photoArea.x;
         const photoY = this.photoArea.y;
         const photoWidth = this.photoArea.width;
         const photoHeight = this.photoArea.height;
 
-        const userDrawWidth = (this.canvas.width / 2) * this.imageZoom;
-        const userDrawHeight = userDrawWidth / (this.userImage.width / this.userImage.height);
-        
         const userDrawX = photoX + (photoWidth / 2) - (userDrawWidth / 2) + (this.imagePosition.x * this.SCALE_FACTOR);
         const userDrawY = photoY + (photoHeight / 2) - (userDrawHeight / 2) + (this.imagePosition.y * this.SCALE_FACTOR);
         
