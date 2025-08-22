@@ -7,13 +7,15 @@
  * Use o formato "Versão [número]: [Descrição da modificação]".
  * Mantenha a lista limitada às 4 últimas alterações para clareza e concisão.
  *
+ * Versão 2.4: Adição de logs de depuração detalhados.
+ * - Inseridos 5 novos logs para rastrear dimensões e coordenadas de desenho.
+ * - Auxilia na identificação de erros de cálculo no posicionamento e clipping da imagem.
  * Versão 2.3: Correção da renderização da imagem do usuário.
  * - Centralização e ajuste de tamanho da imagem (50% da largura do crachá).
  * - Lógica aprimorada para exibir a imagem atrás do modelo (com transparência).
  * - Adicionados novos logs para rastreamento detalhado da renderização.
  * Versão 2.2: Refatoração para buscar dados de um arquivo JSON externo.
  * Versão 2.1: Separação do código JavaScript principal e eventos.
- * Versão 2.0: Código completamente refatorado para melhor organização e performance
  */
 
 class BadgeGenerator {
@@ -446,18 +448,19 @@ class BadgeGenerator {
 
         const canvasWidth = this.canvas.width / this.SCALE_FACTOR;
         
-        // Define a largura da imagem do usuário para 50% da largura do canvas
         const userDrawWidth = canvasWidth * 0.5 * this.imageZoom;
         const userDrawHeight = userDrawWidth / (this.userImage.width / this.userImage.height);
         
-        // Centraliza a imagem no canvas e adiciona os ajustes de posição
         const userDrawX = (canvasWidth / 2) - (userDrawWidth / 2) + this.imagePosition.x;
         const userDrawY = (this.canvas.height / this.SCALE_FACTOR / 2) - (userDrawHeight / 2) + this.imagePosition.y;
+
+        console.log(`[LOG] Coordenadas de desenho: X=${userDrawX}, Y=${userDrawY}`);
+        console.log(`[LOG] Dimensões de desenho: Largura=${userDrawWidth}, Altura=${userDrawHeight}`);
+        console.log(`[LOG] Área de transparência: X=${this.photoArea.x}, Y=${this.photoArea.y}, L=${this.photoArea.width}, A=${this.photoArea.height}`);
         
         this.ctx.save();
         this.ctx.beginPath();
         
-        // Oculta a área que será coberta pela foto dentro do modelo
         this.ctx.rect(this.photoArea.x, this.photoArea.y, this.photoArea.width, this.photoArea.height);
         this.ctx.clip();
         
@@ -482,6 +485,9 @@ class BadgeGenerator {
         
         const userDrawX = (canvasWidth / 2) - (userDrawWidth / 2) + this.imagePosition.x;
         const userDrawY = (this.canvas.height / this.SCALE_FACTOR / 2) - (userDrawHeight / 2) + this.imagePosition.y;
+
+        console.log(`[LOG] Coordenadas de desenho (Frente): X=${userDrawX}, Y=${userDrawY}`);
+        console.log(`[LOG] Dimensões de desenho (Frente): Largura=${userDrawWidth}, Altura=${userDrawHeight}`);
         
         this.ctx.drawImage(
             this.userImage,
@@ -508,15 +514,15 @@ class BadgeGenerator {
         const centerX = canvasWidth / 2;
         if (name) {
             this.ctx.font = `bold ${nameSize}px Arial, sans-serif`;
-            this.ctx.fillText(name, centerX, 305);
+            this.ctx.fillText(name, centerX, 315);
         }
         if (course) {
             this.ctx.font = `${courseSize}px Arial, sans-serif`;
-            this.ctx.fillText(course, centerX, 320);
+            this.ctx.fillText(course, centerX, 335);
         }
         if (location) {
             this.ctx.font = `${locationSize}px Arial, sans-serif`;
-            this.ctx.fillText(location, centerX, 335);
+            this.ctx.fillText(location, centerX, 355);
         }
         console.log('Textos do crachá desenhados.');
     }
