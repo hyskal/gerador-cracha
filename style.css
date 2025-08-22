@@ -1,7 +1,13 @@
 /**
- * GERADOR DE CRACHÁ CETEP - ESTILOS OTIMIZADOS
- * 
- * CHANGELOG:
+ * CHANGELOG
+ *
+ * Instruções para Revisores:
+ * Este bloco de comentários registra as modificações significativas do arquivo.
+ * Cada nova modificação deve ser adicionada no topo da lista.
+ * Use o formato "Versão [número]: [Descrição da modificação]".
+ * Mantenha a lista limitada às 4 últimas alterações para clareza e concisão.
+ *
+ * Versão 2.1: Separação do CSS do arquivo HTML original.
  * Versão 2.0: Estilos completamente refinados
  * - Melhor responsividade e adaptação mobile
  * - Controles mais precisos e intuitivos
