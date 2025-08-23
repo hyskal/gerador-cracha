@@ -7,15 +7,15 @@
  * Use o formato "Versão [número]: [Descrição da modificação]".
  * Mantenha a lista limitada às 4 últimas alterações para clareza e concisão.
  *
+ * Versão 4.7: Ajuste da área de renderização quadrada para 400x400 pixels.
+ * - Largura e altura da área de renderização definidas para 400px.
+ * - Posição da área de renderização mantida.
  * Versão 4.6: Ajuste da área de renderização quadrada.
  * - Largura e altura da área de renderização aumentadas em 20%.
  * - Posição da área de renderização mantida.
  * Versão 4.5: Ajuste da área de renderização quadrada.
  * - Área de renderização diminuída em 30%.
  * - Área de renderização movida 50px para a direita.
- * Versão 4.4: Ajuste da área de renderização quadrada.
- * - Área de renderização diminuída em 45%.
- * - Área de renderização movida 15px para cima e 60px para a direita.
  */
 class BadgeGenerator {
     constructor() {
@@ -35,13 +35,12 @@ class BadgeGenerator {
         this.hasTransparency = true;
         
         // Coordenadas e dimensões da área de transparência para a foto do usuário.
-        // Os valores abaixo foram ajustados para manter a posição e
-        // aumentar a área em 20%.
+        // Os valores abaixo foram ajustados para definir a área em 400x400 pixels.
         this.photoArea = {
             x: 300, // Posição X mantida
             y: 390, // Posição Y mantida
-            width: 420, // Nova largura (350 * 1.20)
-            height: 420 // Nova altura (350 * 1.20)
+            width: 400, // Nova largura
+            height: 400 // Nova altura
         };
 
         this.imagePosition = { x: 0, y: 0 };
