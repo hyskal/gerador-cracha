@@ -7,15 +7,15 @@
  * Use o formato "Versão [número]: [Descrição da modificação]".
  * Mantenha a lista limitada às 4 últimas alterações para clareza e concisão.
  *
+ * Versão 4.6: Ajuste da área de renderização quadrada.
+ * - Largura e altura da área de renderização aumentadas em 20%.
+ * - Posição da área de renderização mantida.
  * Versão 4.5: Ajuste da área de renderização quadrada.
  * - Área de renderização diminuída em 30%.
  * - Área de renderização movida 50px para a direita.
  * Versão 4.4: Ajuste da área de renderização quadrada.
  * - Área de renderização diminuída em 45%.
  * - Área de renderização movida 15px para cima e 60px para a direita.
- * Versão 4.3: Ajuste da área de renderização quadrada.
- * - Área de renderização diminuída em 25%.
- * - Área de renderização movida 15px para cima.
  */
 class BadgeGenerator {
     constructor() {
@@ -35,13 +35,13 @@ class BadgeGenerator {
         this.hasTransparency = true;
         
         // Coordenadas e dimensões da área de transparência para a foto do usuário.
-        // Os valores abaixo foram ajustados para diminuir a área em 30% e
-        // movê-la 50px para a direita.
+        // Os valores abaixo foram ajustados para manter a posição e
+        // aumentar a área em 20%.
         this.photoArea = {
-            x: 300, // Nova posição X para mover 50px para a direita (250 + 50)
-            y: 390, // Posição Y mantida do ajuste anterior
-            width: 350, // Nova largura (500 * 0.7)
-            height: 350 // Nova altura (500 * 0.7)
+            x: 300, // Posição X mantida
+            y: 390, // Posição Y mantida
+            width: 420, // Nova largura (350 * 1.20)
+            height: 420 // Nova altura (350 * 1.20)
         };
 
         this.imagePosition = { x: 0, y: 0 };
@@ -475,7 +475,6 @@ class BadgeGenerator {
             this.ctx.font = `${locationSize}px Arial, sans-serif`;
             this.ctx.fillText(location, centerX, 355);
         }
-        console.log('Textos do crachá desenhados.');
     }
 
     generateCard() {
