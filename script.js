@@ -479,31 +479,25 @@ class BadgeGenerator {
         printCtx.imageSmoothingEnabled = true;
         printCtx.imageSmoothingQuality = 'high';
 
-        // Calcula a escala de conversão do canvas de preview para o canvas de impressão
         const scaleX = printCanvas.width / (this.canvas.width / this.SCALE_FACTOR);
         const scaleY = printCanvas.height / (this.canvas.height / this.SCALE_FACTOR);
 
-        // Desenha a imagem do usuário no canvas de alta resolução
         if (this.userImage) {
             this.drawUserImageOnPrintCanvas(printCtx, scaleX, scaleY);
         }
         
-        // Desenha o modelo PNG por cima da imagem do usuário.
         printCtx.drawImage(this.modelImage, 0, 0, printCanvas.width, printCanvas.height);
 
-        // Desenha os textos finais no crachá de alta resolução.
         this.drawTextsOnPrintCanvas(printCtx, scaleY);
         
-        // Adiciona a borda fina preta
         printCtx.strokeStyle = 'black';
         printCtx.lineWidth = 1;
         printCtx.strokeRect(0, 0, printCanvas.width, printCanvas.height);
 
-        // Cria o link de download com o nome do aluno
-        const dataURL = printCanvas.toDataURL('image/png');
+        const dataURL = printCanvas.toDataURL('image/jpeg', 0.9);
         const downloadLink = document.getElementById('downloadLink');
         const fileName = document.getElementById('name').value.trim();
-        downloadLink.download = `${fileName || 'cracha-cetep'}.png`;
+        downloadLink.download = `${fileName || 'cracha-cetep'}.jpeg`;
         downloadLink.href = dataURL;
     }
 
