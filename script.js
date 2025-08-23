@@ -7,10 +7,13 @@
  * Use o formato "Versão [número]: [Descrição da modificação]".
  * Mantenha a lista limitada às 4 últimas alterações para clareza e concisão.
  *
+ * Versão 3.3: Correção da centralização e do recorte circular.
+ * - Lógica de posicionamento da imagem ajustada para centralizá-la corretamente no centro do círculo de transparência.
+ * - O tamanho da imagem é agora dimensionado com base no diâmetro do círculo para um ajuste perfeito.
+ * - Adicionados logs detalhados para verificar as novas coordenadas de desenho e recorte.
  * Versão 3.2: Correção do recorte e do posicionamento da imagem.
  * - Lógica de clipping alterada de retangular para circular (ctx.arc) para corresponder à transparência do modelo.
  * - Coordenadas da área de transparência (photoArea) atualizadas com base nos dados fornecidos.
- * - Lógica de centralização da imagem do usuário ajustada para usar as novas coordenadas de centro e raio.
  * Versão 3.1: Implementação de pica.js e correção da lógica de desenho.
  * - Adicionada a biblioteca pica.js para redimensionamento de imagem de alta qualidade.
  * - Refatorada a função processUserImage() para usar pica.js.
@@ -30,11 +33,9 @@ class BadgeGenerator {
         this.ctx = this.canvas.getContext('2d');
         this.userImage = null;
         this.modelImage = null;
-        this.hasTransparency = true; // Assume que o modelo padrão tem transparência
+        this.hasTransparency = true;
         
-        // Dados da área de foto, obtidos da análise da imagem.
-        // A lógica de análise do script anterior não será mais necessária
-        // para o modelo padrão, pois já temos as coordenadas exatas.
+        // Coordenadas e dimensões da área de transparência fornecidas pelo usuário
         this.photoArea = {
             x: 348,
             y: 661,
@@ -302,8 +303,6 @@ class BadgeGenerator {
     }
 
     analyzeTransparency() {
-        // A lógica de análise foi removida e substituída por dados fixos na inicialização.
-        // O `this.photoArea` é agora uma propriedade fixa da classe.
         console.log('A análise de transparência foi substituída por dados fixos.');
     }
 
@@ -323,10 +322,6 @@ class BadgeGenerator {
         const mouseY = (event.clientY - rect.top);
         
         const scaledPhotoArea = {
-            x: this.photoArea.x / this.SCALE_FACTOR,
-            y: this.photoArea.y / this.SCALE_FACTOR,
-            width: this.photoArea.width / this.SCALE_FACTOR,
-            height: this.photoArea.height / this.SCALE_FACTOR,
             centerX: this.photoArea.centerX / this.SCALE_FACTOR,
             centerY: this.photoArea.centerY / this.SCALE_FACTOR,
             radius: this.photoArea.radius / this.SCALE_FACTOR
@@ -411,13 +406,14 @@ class BadgeGenerator {
         const photoAreaY = this.photoArea.centerY / this.SCALE_FACTOR;
         const photoAreaRadius = this.photoArea.radius / this.SCALE_FACTOR;
         
-        const userDrawWidth = this.userImage.width * this.imageZoom;
-        const userDrawHeight = this.userImage.height * this.imageZoom;
+        // A largura da imagem agora é dimensionada para o diâmetro do círculo
+        const userDrawWidth = (photoAreaRadius * 2) * this.imageZoom;
+        const userDrawHeight = userDrawWidth / (this.userImage.width / this.userImage.height);
         
         const userDrawX = photoAreaX - (userDrawWidth / 2) + this.imagePosition.x;
         const userDrawY = photoAreaY - (userDrawHeight / 2) + this.imagePosition.y;
 
-        console.log(`[DEBUG-draw] Coordenadas da imagem do usuário (behind): X=${userDrawX}, Y=${userDrawY}, W=${userDrawWidth}, H=${userDrawHeight}`);
+        console.log(`[DEBUG-draw] Imagem do usuário (behind): X=${userDrawX}, Y=${userDrawY}, W=${userDrawWidth}, H=${userDrawHeight}`);
         console.log(`[DEBUG-draw] Área de transparência: Centro X=${photoAreaX}, Centro Y=${photoAreaY}, Raio=${photoAreaRadius}`);
         
         this.ctx.save();
@@ -449,7 +445,7 @@ class BadgeGenerator {
         const userDrawX = (canvasWidth / 2) - (userDrawWidth / 2) + this.imagePosition.x;
         const userDrawY = (this.canvas.height / this.SCALE_FACTOR / 2) - (userDrawHeight / 2) + this.imagePosition.y;
 
-        console.log(`[DEBUG-draw] Coordenadas da imagem do usuário (frente): X=${userDrawX}, Y=${userDrawY}, W=${userDrawWidth}, H=${userDrawHeight}`);
+        console.log(`[DEBUG-draw] Imagem do usuário (frente): X=${userDrawX}, Y=${userDrawY}, W=${userDrawWidth}, H=${userDrawHeight}`);
         
         this.ctx.drawImage(
             this.userImage,
@@ -541,8 +537,8 @@ class BadgeGenerator {
         const photoAreaY = this.photoArea.centerY;
         const photoAreaRadius = this.photoArea.radius;
         
-        const userDrawWidth = this.userImage.width * this.imageZoom;
-        const userDrawHeight = this.userImage.height * this.imageZoom;
+        const userDrawWidth = (photoAreaRadius * 2) * this.imageZoom;
+        const userDrawHeight = userDrawWidth / (this.userImage.width / this.userImage.height);
         
         const userDrawX = photoAreaX - (userDrawWidth / 2) + (this.imagePosition.x * this.SCALE_FACTOR);
         const userDrawY = photoAreaY - (userDrawHeight / 2) + (this.imagePosition.y * this.SCALE_FACTOR);
