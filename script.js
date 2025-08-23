@@ -7,15 +7,16 @@
  * Use o formato "Versão [número]: [Descrição da modificação]".
  * Mantenha a lista limitada às 4 últimas alterações para clareza e concisão.
  *
+ * Versão 4.9: Corrigido o bug de download do crachá e removido logs de debug.
+ * - A lógica de desenho no canvas de alta resolução foi corrigida para incluir a foto do usuário.
+ * - As coordenadas e o dimensionamento agora são calculados corretamente para o download.
+ * - Funções de desenho foram refatoradas para aceitar o contexto e a escala.
+ * - Logs de debug de posicionamento do mouse removidos para um console mais limpo.
  * Versão 4.8: Corrigido o bug de download do crachá.
  * - A lógica de desenho da imagem do usuário e do texto no canvas de alta resolução foi refeita.
  * - As coordenadas e o dimensionamento agora são calculados corretamente para o arquivo de download, garantindo que a foto seja incluída.
  * Versão 4.7: Ajuste da área de renderização quadrada para 400x400 pixels.
  * - Largura e altura da área de renderização definidas para 400px.
- * - Posição da área de renderização mantida.
- * Versão 4.6: Ajuste da área de renderização quadrada.
- * - Largura e altura da área de renderização aumentadas em 20%.
- * - Posição da área de renderização mantida.
  */
 class BadgeGenerator {
     constructor() {
@@ -35,12 +36,11 @@ class BadgeGenerator {
         this.hasTransparency = true;
         
         // Coordenadas e dimensões da área de transparência para a foto do usuário.
-        // Os valores abaixo foram ajustados para definir a área em 400x400 pixels.
         this.photoArea = {
-            x: 300, // Posição X mantida
-            y: 390, // Posição Y mantida
-            width: 400, // Nova largura
-            height: 400 // Nova altura
+            x: 300, 
+            y: 390, 
+            width: 400, 
+            height: 400 
         };
 
         this.imagePosition = { x: 0, y: 0 };
@@ -284,7 +284,7 @@ class BadgeGenerator {
             targetWidth = targetHeight * aspectRatio;
         }
         
-        console.log(`[DEBUG-processamento] Quadrado lado: ${squareSize}, Target: ${targetWidth}x${targetHeight}, Aspect: ${aspectRatio}`);
+        // console.log(`[DEBUG-processamento] Quadrado lado: ${squareSize}, Target: ${targetWidth}x${targetHeight}, Aspect: ${aspectRatio}`);
 
         const resizedCanvas = document.createElement('canvas');
         resizedCanvas.width = targetWidth;
@@ -295,14 +295,14 @@ class BadgeGenerator {
                 quality: 3,
             });
 
-            console.log('[DEBUG-pica] Redimensionamento concluído.');
+            // console.log('[DEBUG-pica] Redimensionamento concluído.');
 
             const processedImage = new Image();
             processedImage.onload = () => {
                 this.userImage = processedImage;
                 this.resetImageControls();
                 this.drawBadge();
-                console.log(`[DEBUG-pica] Nova imagem processada: Largura=${processedImage.width}, Altura=${processedImage.height}`);
+                // console.log(`[DEBUG-pica] Nova imagem processada: Largura=${processedImage.width}, Altura=${processedImage.height}`);
             };
             processedImage.src = result.toDataURL('image/png');
         } catch (error) {
@@ -349,7 +349,7 @@ class BadgeGenerator {
                 y: mouseY - this.imagePosition.y
             };
             this.canvas.style.cursor = 'grabbing';
-            console.log(`[DEBUG-drag] Início do arrasto: Mouse X=${mouseX}, Y=${mouseY}. Imagem X=${this.imagePosition.x}, Y=${this.imagePosition.y}`);
+            // console.log(`[DEBUG-drag] Início do arrasto: Mouse X=${mouseX}, Y=${mouseY}. Imagem X=${this.imagePosition.x}, Y=${this.imagePosition.y}`);
         }
     }
 
@@ -371,7 +371,7 @@ class BadgeGenerator {
         document.getElementById('positionX').value = Math.round(this.imagePosition.x);
         document.getElementById('positionY').value = Math.round(this.imagePosition.y);
         
-        console.log(`[DEBUG-drag] Mouse atual X=${mouseX}, Y=${mouseY}. Nova posição da imagem X=${this.imagePosition.x}, Y=${this.imagePosition.y}`);
+        // console.log(`[DEBUG-drag] Mouse atual X=${mouseX}, Y=${mouseY}. Nova posição da imagem X=${this.imagePosition.x}, Y=${this.imagePosition.y}`);
         
         this.updateSliderValues();
         this.drawBadge();
@@ -380,7 +380,7 @@ class BadgeGenerator {
     endDrag() {
         this.isDragging = false;
         this.canvas.style.cursor = this.userImage ? 'grab' : 'default';
-        console.log('Arrasto finalizado.');
+        // console.log('Arrasto finalizado.');
     }
 
     drawBadge() {
@@ -426,8 +426,8 @@ class BadgeGenerator {
         const userDrawX = photoAreaX + (photoAreaWidth / 2) - (userDrawWidth / 2) + this.imagePosition.x;
         const userDrawY = photoAreaY + (photoAreaHeight / 2) - (userDrawHeight / 2) + this.imagePosition.y;
 
-        console.log(`[DEBUG-draw] Imagem do usuário (behind): X=${userDrawX}, Y=${userDrawY}, W=${userDrawWidth}, H=${userDrawHeight}`);
-        console.log(`[DEBUG-draw] Área de transparência: X=${photoAreaX}, Y=${photoAreaY}, W=${photoAreaWidth}, H=${photoAreaHeight}`);
+        // console.log(`[DEBUG-draw] Imagem do usuário (behind): X=${userDrawX}, Y=${userDrawY}, W=${userDrawWidth}, H=${userDrawHeight}`);
+        // console.log(`[DEBUG-draw] Área de transparência: X=${photoAreaX}, Y=${photoAreaY}, W=${photoAreaWidth}, H=${photoAreaHeight}`);
         
         ctx.save();
         ctx.beginPath();
@@ -491,7 +491,6 @@ class BadgeGenerator {
             alert('Por favor, carregue a foto e o modelo antes de imprimir.');
             return;
         }
-        // Redesenha a imagem com o contexto de preview antes de imprimir.
         this.drawBadge();
         window.print();
     }
@@ -505,45 +504,60 @@ class BadgeGenerator {
         printCtx.imageSmoothingEnabled = true;
         printCtx.imageSmoothingQuality = 'high';
 
-        // Calcula o fator de escala do preview para o canvas de alta resolução.
-        const previewWidth = this.canvas.width / this.SCALE_FACTOR;
-        const previewHeight = this.canvas.height / this.SCALE_FACTOR;
-        const scaleX = this.PRINT_WIDTH_PX / previewWidth;
-        const scaleY = this.PRINT_HEIGHT_PX / previewHeight;
-
-        // Desenha a imagem do usuário no canvas de alta resolução com as coordenadas escaladas.
+        // Desenha a imagem do usuário no canvas de alta resolução
         if (this.userImage) {
-            const brightness = parseInt(document.getElementById('brightness').value);
-            const contrast = parseInt(document.getElementById('contrast').value);
-            printCtx.filter = `brightness(${100 + brightness}%) contrast(${100 + contrast}%)`;
-
-            const photoAreaX = this.photoArea.x * scaleX;
-            const photoAreaY = this.photoArea.y * scaleY;
-            const photoAreaWidth = this.photoArea.width * scaleX;
-            const photoAreaHeight = this.photoArea.height * scaleY;
-
-            const userDrawWidth = this.userImage.width * this.imageZoom * scaleX;
-            const userDrawHeight = this.userImage.height * this.imageZoom * scaleY;
-
-            const userDrawX = photoAreaX + (photoAreaWidth / 2) - (userDrawWidth / 2) + (this.imagePosition.x * scaleX);
-            const userDrawY = photoAreaY + (photoAreaHeight / 2) - (userDrawHeight / 2) + (this.imagePosition.y * scaleY);
-
-            printCtx.save();
-            printCtx.beginPath();
-            printCtx.rect(photoAreaX, photoAreaY, photoAreaWidth, photoAreaHeight);
-            printCtx.clip();
-            printCtx.drawImage(
-                this.userImage,
-                userDrawX, userDrawY, userDrawWidth, userDrawHeight
-            );
-            printCtx.restore();
-            printCtx.filter = 'none';
+            this.drawUserImageOnPrintCanvas(printCtx);
         }
         
         // Desenha o modelo PNG por cima da imagem do usuário.
-        printCtx.drawImage(this.modelImage, 0, 0, this.PRINT_WIDTH_PX, this.PRINT_HEIGHT_PX);
+        // A proporção do modelo também é escalada para as dimensões de impressão.
+        const modelDrawWidth = this.modelImage.width * (this.PRINT_WIDTH_PX / this.modelImage.width);
+        const modelDrawHeight = this.modelImage.height * (this.PRINT_HEIGHT_PX / this.modelImage.height);
+        printCtx.drawImage(this.modelImage, 0, 0, modelDrawWidth, modelDrawHeight);
 
         // Desenha os textos finais no crachá de alta resolução.
+        this.drawTextsOnPrintCanvas(printCtx);
+
+        // Cria o link de download.
+        const dataURL = printCanvas.toDataURL('image/png');
+        const downloadLink = document.getElementById('downloadLink');
+        downloadLink.href = dataURL;
+    }
+
+    drawUserImageOnPrintCanvas(printCtx) {
+        const brightness = parseInt(document.getElementById('brightness').value);
+        const contrast = parseInt(document.getElementById('contrast').value);
+        printCtx.filter = `brightness(${100 + brightness}%) contrast(${100 + contrast}%)`;
+        
+        // Calcula a escala de conversão do preview para o canvas de alta resolução
+        const scaleX = this.PRINT_WIDTH_PX / (this.canvas.width / this.SCALE_FACTOR);
+        const scaleY = this.PRINT_HEIGHT_PX / (this.canvas.height / this.SCALE_FACTOR);
+        
+        // Desenho atrás com clipping retangular para impressão
+        const photoAreaX = this.photoArea.x * scaleX;
+        const photoAreaY = this.photoArea.y * scaleY;
+        const photoAreaWidth = this.photoArea.width * scaleX;
+        const photoAreaHeight = this.photoArea.height * scaleY;
+        
+        const userDrawWidth = this.userImage.width * this.imageZoom * scaleX;
+        const userDrawHeight = this.userImage.height * this.imageZoom * scaleY;
+        
+        const userDrawX = photoAreaX + (photoAreaWidth / 2) - (userDrawWidth / 2) + (this.imagePosition.x * scaleX);
+        const userDrawY = photoAreaY + (photoAreaHeight / 2) - (userDrawHeight / 2) + (this.imagePosition.y * scaleY);
+        
+        printCtx.save();
+        printCtx.beginPath();
+        printCtx.rect(photoAreaX, photoAreaY, photoAreaWidth, photoAreaHeight);
+        printCtx.clip();
+        printCtx.drawImage(
+            this.userImage,
+            userDrawX, userDrawY, userDrawWidth, userDrawHeight
+        );
+        printCtx.restore();
+        printCtx.filter = 'none';
+    }
+
+    drawTextsOnPrintCanvas(printCtx) {
         const name = document.getElementById('name').value;
         const courseSelect = document.getElementById('courseSelect').value;
         const courseCustom = document.getElementById('courseCustom').value;
@@ -551,6 +565,9 @@ class BadgeGenerator {
         const locationSelect = document.getElementById('locationSelect').value;
         const locationCustom = document.getElementById('locationCustom').value;
         const location = locationSelect === 'custom' ? locationCustom : locationSelect;
+
+        const scaleY = this.PRINT_HEIGHT_PX / (this.canvas.height / this.SCALE_FACTOR);
+        
         const nameSize = parseInt(document.getElementById('nameSize').value) * scaleY;
         const courseSize = parseInt(document.getElementById('courseSize').value) * scaleY;
         const locationSize = parseInt(document.getElementById('locationSize').value) * scaleY;
@@ -558,23 +575,20 @@ class BadgeGenerator {
         printCtx.fillStyle = '#1e3a8a';
         printCtx.textAlign = 'center';
         
+        const centerX = this.PRINT_WIDTH_PX / 2;
+
         if (name) {
             printCtx.font = `bold ${nameSize}px Arial, sans-serif`;
-            printCtx.fillText(name, this.PRINT_WIDTH_PX / 2, 315 * scaleY);
+            printCtx.fillText(name, centerX, 315 * scaleY);
         }
         if (course) {
             printCtx.font = `${courseSize}px Arial, sans-serif`;
-            printCtx.fillText(course, this.PRINT_WIDTH_PX / 2, 335 * scaleY);
+            printCtx.fillText(course, centerX, 335 * scaleY);
         }
         if (location) {
             printCtx.font = `${locationSize}px Arial, sans-serif`;
-            printCtx.fillText(location, this.PRINT_WIDTH_PX / 2, 355 * scaleY);
+            printCtx.fillText(location, centerX, 355 * scaleY);
         }
-
-        // Cria o link de download.
-        const dataURL = printCanvas.toDataURL('image/png');
-        const downloadLink = document.getElementById('downloadLink');
-        downloadLink.href = dataURL;
     }
 }
 
