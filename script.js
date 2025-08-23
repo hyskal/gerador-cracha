@@ -7,16 +7,15 @@
  * Use o formato "Versão [número]: [Descrição da modificação]".
  * Mantenha a lista limitada às 4 últimas alterações para clareza e concisão.
  *
+ * Versão 4.1: Ajuste fino da área de renderização da imagem.
+ * - Círculo aumentado em 20% do raio original.
+ * - Área de renderização movida 40px para cima e 30px para a direita.
  * Versão 4.0: Ajuste da área de renderização circular da imagem.
  * - Aumentado o raio do círculo para ampliar a área da imagem.
  * - Alterado o centro X e Y para mover a área de renderização para a esquerda e para cima.
  * Versão 3.5: Correção completa da área de transparência para exibição total da imagem.
  * - Ajustada a lógica de dimensionamento para garantir que a imagem caiba completamente na área circular.
  * - Corrigido o posicionamento inicial para centralizar a imagem na área de transparência.
- * - Melhorada a lógica de zoom para manter a imagem dentro dos limites do círculo.
- * - Adicionado controle automático de escala para imagens muito grandes ou pequenas.
- * Versão 3.4: Correção final do posicionamento da imagem.
- * Versão 3.3: Correção do recorte e do posicionamento circular.
  */
 class BadgeGenerator {
     constructor() {
@@ -37,15 +36,15 @@ class BadgeGenerator {
         
         // Coordenadas e dimensões da área de transparência fornecidas pelo usuário
         // Os valores abaixo foram ajustados para ampliar a área circular e
-        // movê-la para cima e para a esquerda.
+        // movê-la para cima e para a direita.
         this.photoArea = {
             x: 348,
             y: 661,
             width: 419,
             height: 546,
-            centerX: 350, // Ajustado para mover a área para a esquerda
-            centerY: 750, // Ajustado para mover a área para cima
-            radius: 250   // Ajustado para ampliar a área circular
+            centerX: 380, // Ajustado para mover a área para a direita
+            centerY: 710, // Ajustado para mover a área para cima
+            radius: 300   // Ajustado para ampliar a área circular em 20%
         };
 
         this.imagePosition = { x: 0, y: 0 };
