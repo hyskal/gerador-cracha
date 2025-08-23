@@ -7,16 +7,12 @@
  * Use o formato "Versão [número]: [Descrição da modificação]".
  * Mantenha a lista limitada às 4 últimas alterações para clareza e concisão.
  *
+ * Versão 5.0: Adicionada borda fina preta na imagem de download.
+ * - A função de download foi modificada para desenhar uma borda preta ao redor de todo o crachá.
+ * - Isso garante que a imagem baixada em alta resolução tenha a borda.
  * Versão 4.9: Corrigido o bug de download do crachá e removido logs de debug.
  * - A lógica de desenho no canvas de alta resolução foi corrigida para incluir a foto do usuário.
  * - As coordenadas e o dimensionamento agora são calculados corretamente para o download.
- * - Funções de desenho foram refatoradas para aceitar o contexto e a escala.
- * - Logs de debug de posicionamento do mouse removidos para um console mais limpo.
- * Versão 4.8: Corrigido o bug de download do crachá.
- * - A lógica de desenho da imagem do usuário e do texto no canvas de alta resolução foi refeita.
- * - As coordenadas e o dimensionamento agora são calculados corretamente para o arquivo de download, garantindo que a foto seja incluída.
- * Versão 4.7: Ajuste da área de renderização quadrada para 400x400 pixels.
- * - Largura e altura da área de renderização definidas para 400px.
  */
 class BadgeGenerator {
     constructor() {
@@ -382,11 +378,9 @@ class BadgeGenerator {
         this.ctx.clearRect(0, 0, this.canvas.width / this.SCALE_FACTOR, this.canvas.height / this.SCALE_FACTOR);
         
         if (this.userImage) {
-            console.log('Desenhando imagem do usuário.');
             this.drawUserImageBehind(this.ctx, this.SCALE_FACTOR);
             this.drawModel(this.ctx, this.SCALE_FACTOR);
         } else {
-            console.log('Imagem do usuário não disponível. Desenhando apenas o modelo.');
             this.drawModel(this.ctx, this.SCALE_FACTOR);
         }
         this.drawTexts(this.ctx, this.SCALE_FACTOR);
@@ -396,7 +390,6 @@ class BadgeGenerator {
         const canvasWidth = this.canvas.width / scale;
         const canvasHeight = this.canvas.height / scale;
         ctx.drawImage(this.modelImage, 0, 0, canvasWidth, canvasHeight);
-        console.log('Modelo do crachá desenhado.');
     }
 
     drawUserImageBehind(ctx, scale) {
@@ -409,22 +402,18 @@ class BadgeGenerator {
         const photoAreaWidth = this.photoArea.width / scale;
         const photoAreaHeight = this.photoArea.height / scale;
         
-        // Calcula as dimensões da imagem com zoom aplicado
         const userDrawWidth = this.userImage.width * this.imageZoom;
         const userDrawHeight = this.userImage.height * this.imageZoom;
         
-        // Centraliza a imagem na área de recorte
         const userDrawX = photoAreaX + (photoAreaWidth / 2) - (userDrawWidth / 2) + (this.imagePosition.x / scale);
         const userDrawY = photoAreaY + (photoAreaHeight / 2) - (userDrawHeight / 2) + (this.imagePosition.y / scale);
         
         ctx.save();
         ctx.beginPath();
         
-        // Cria o clipping retangular
         ctx.rect(photoAreaX, photoAreaY, photoAreaWidth, photoAreaHeight);
         ctx.clip();
         
-        // Desenha a imagem dentro do clipping
         ctx.drawImage(
             this.userImage,
             userDrawX, userDrawY, userDrawWidth, userDrawHeight
@@ -432,7 +421,6 @@ class BadgeGenerator {
         
         ctx.restore();
         ctx.filter = 'none';
-        console.log('Imagem do usuário desenhada atrás do modelo (com transparência).');
     }
 
     drawTexts(ctx, scale) {
@@ -462,7 +450,6 @@ class BadgeGenerator {
             ctx.font = `${locationSize}px Arial, sans-serif`;
             ctx.fillText(location, centerX, 355);
         }
-        console.log('Textos do crachá desenhados.');
     }
 
     generateCard() {
@@ -484,7 +471,6 @@ class BadgeGenerator {
     }
 
     createDownloadLink() {
-        // Cria um canvas de alta resolução para o download.
         const printCanvas = document.createElement('canvas');
         printCanvas.width = this.PRINT_WIDTH_PX;
         printCanvas.height = this.PRINT_HEIGHT_PX;
@@ -492,21 +478,18 @@ class BadgeGenerator {
         printCtx.imageSmoothingEnabled = true;
         printCtx.imageSmoothingQuality = 'high';
 
-        // Desenha a imagem do usuário no canvas de alta resolução
         if (this.userImage) {
             this.drawUserImageOnPrintCanvas(printCtx);
         }
         
-        // Desenha o modelo PNG por cima da imagem do usuário.
-        // A proporção do modelo também é escalada para as dimensões de impressão.
-        const modelDrawWidth = this.modelImage.width * (this.PRINT_WIDTH_PX / this.modelImage.width);
-        const modelDrawHeight = this.modelImage.height * (this.PRINT_HEIGHT_PX / this.modelImage.height);
-        printCtx.drawImage(this.modelImage, 0, 0, modelDrawWidth, modelDrawHeight);
-
-        // Desenha os textos finais no crachá de alta resolução.
+        printCtx.drawImage(this.modelImage, 0, 0, this.PRINT_WIDTH_PX, this.PRINT_HEIGHT_PX);
         this.drawTextsOnPrintCanvas(printCtx);
+        
+        // Adiciona a borda fina preta
+        printCtx.strokeStyle = 'black';
+        printCtx.lineWidth = 1;
+        printCtx.strokeRect(0, 0, printCanvas.width, printCanvas.height);
 
-        // Cria o link de download.
         const dataURL = printCanvas.toDataURL('image/png');
         const downloadLink = document.getElementById('downloadLink');
         downloadLink.href = dataURL;
@@ -517,11 +500,9 @@ class BadgeGenerator {
         const contrast = parseInt(document.getElementById('contrast').value);
         printCtx.filter = `brightness(${100 + brightness}%) contrast(${100 + contrast}%)`;
         
-        // Calcula a escala de conversão do preview para o canvas de alta resolução
         const scaleX = this.PRINT_WIDTH_PX / (this.canvas.width / this.SCALE_FACTOR);
         const scaleY = this.PRINT_HEIGHT_PX / (this.canvas.height / this.SCALE_FACTOR);
         
-        // Desenho atrás com clipping retangular para impressão
         const photoAreaX = this.photoArea.x * scaleX;
         const photoAreaY = this.photoArea.y * scaleY;
         const photoAreaWidth = this.photoArea.width * scaleX;
