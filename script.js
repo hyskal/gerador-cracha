@@ -7,6 +7,8 @@
  * Use o formato "Versão [número]: [Descrição da modificação]".
  * Mantenha a lista limitada às 4 últimas alterações para clareza e concisão.
  *
+ * Versão 5.1: Adicionado zoom de 25%
+ * - O valor mínimo para o controle de zoom foi ajustado de 50% para 25%.
  * Versão 5.0: Adicionada borda fina preta na imagem de download.
  * - A função de download foi modificada para desenhar uma borda preta ao redor de todo o crachá.
  * - Isso garante que a imagem baixada em alta resolução tenha a borda.
@@ -172,7 +174,7 @@ class BadgeGenerator {
     adjustZoom(delta) {
         const zoomSlider = document.getElementById('zoom');
         const currentValue = parseInt(zoomSlider.value);
-        const newValue = Math.max(50, Math.min(200, currentValue + delta));
+        const newValue = Math.max(25, Math.min(200, currentValue + delta));
         zoomSlider.value = newValue;
         this.imageZoom = newValue / 100;
         document.getElementById('zoomValue').textContent = newValue + '%';
@@ -478,11 +480,18 @@ class BadgeGenerator {
         printCtx.imageSmoothingEnabled = true;
         printCtx.imageSmoothingQuality = 'high';
 
+        // Desenha a imagem do usuário no canvas de alta resolução
         if (this.userImage) {
             this.drawUserImageOnPrintCanvas(printCtx);
         }
         
-        printCtx.drawImage(this.modelImage, 0, 0, this.PRINT_WIDTH_PX, this.PRINT_HEIGHT_PX);
+        // Desenha o modelo PNG por cima da imagem do usuário.
+        // A proporção do modelo também é escalada para as dimensões de impressão.
+        const modelDrawWidth = this.modelImage.width * (this.PRINT_WIDTH_PX / (this.canvas.width/this.SCALE_FACTOR));
+        const modelDrawHeight = this.modelImage.height * (this.PRINT_HEIGHT_PX / (this.canvas.height/this.SCALE_FACTOR));
+        printCtx.drawImage(this.modelImage, 0, 0, modelDrawWidth, modelDrawHeight);
+
+        // Desenha os textos finais no crachá de alta resolução.
         this.drawTextsOnPrintCanvas(printCtx);
         
         // Adiciona a borda fina preta
@@ -490,6 +499,7 @@ class BadgeGenerator {
         printCtx.lineWidth = 1;
         printCtx.strokeRect(0, 0, printCanvas.width, printCanvas.height);
 
+        // Cria o link de download.
         const dataURL = printCanvas.toDataURL('image/png');
         const downloadLink = document.getElementById('downloadLink');
         downloadLink.href = dataURL;
