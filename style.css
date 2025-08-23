@@ -7,12 +7,11 @@
  * Use o formato "Versão [número]: [Descrição da modificação]".
  * Mantenha a lista limitada às 4 últimas alterações para clareza e concisão.
  *
+ * Versão 2.3: Adicionada borda fina preta na impressão do canvas.
+ * - Isso garante que o crachá impresso (via PDF ou impressora) tenha uma borda visível.
+ * Versão 2.2: Corrigida a exibição dos controles de zoom na impressão.
+ * - Adicionado `.zoom-controls` à lista de elementos ocultos na versão de impressão.
  * Versão 2.1: Separação do CSS do arquivo HTML original.
- * Versão 2.0: Estilos completamente refinados
- * - Melhor responsividade e adaptação mobile
- * - Controles mais precisos e intuitivos
- * - Animações suaves e feedback visual
- * - Design moderno e clean
  */
 
 /* Reset e configurações base */
@@ -425,11 +424,6 @@ body {
     box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
 }
 
-.generate-btn:hover::before,
-.print-btn:hover::before {
-    left: 100%;
-}
-
 .generate-btn:active,
 .print-btn:active {
     transform: translateY(-1px);
@@ -599,7 +593,8 @@ body {
     .controls-panel,
     .generate-section,
     .text-controls-panel,
-    .header {
+    .header,
+    .zoom-controls {
         display: none !important;
     }
     
@@ -615,7 +610,7 @@ body {
         width: 54mm !important;
         height: 85mm !important;
         box-shadow: none;
-        border: none;
+        border: 1px solid black; /* Adicionado para a borda na impressão do navegador */
         border-radius: 0;
     }
 }
