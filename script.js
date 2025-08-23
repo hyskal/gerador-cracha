@@ -7,14 +7,13 @@
  * Use o formato "Versão [número]: [Descrição da modificação]".
  * Mantenha a lista limitada às 4 últimas alterações para clareza e concisão.
  *
+ * Versão 5.3: Corrigido o bug de download da imagem.
+ * - A lógica de escala na função de download foi revisada para garantir que a foto do usuário e o modelo sejam desenhados corretamente no canvas de alta resolução.
+ * - A ordem de desenho foi ajustada para que a foto do usuário apareça por trás do modelo.
+ * Versão 5.2: Corrigido nome do arquivo de download.
+ * - O nome do arquivo agora é gerado dinamicamente com base no nome do aluno inserido no campo de texto.
  * Versão 5.1: Adicionado zoom de 25%
  * - O valor mínimo para o controle de zoom foi ajustado de 50% para 25%.
- * Versão 5.0: Adicionada borda fina preta na imagem de download.
- * - A função de download foi modificada para desenhar uma borda preta ao redor de todo o crachá.
- * - Isso garante que a imagem baixada em alta resolução tenha a borda.
- * Versão 4.9: Corrigido o bug de download do crachá e removido logs de debug.
- * - A lógica de desenho no canvas de alta resolução foi corrigida para incluir a foto do usuário.
- * - As coordenadas e o dimensionamento agora são calculados corretamente para o download.
  */
 class BadgeGenerator {
     constructor() {
@@ -480,38 +479,38 @@ class BadgeGenerator {
         printCtx.imageSmoothingEnabled = true;
         printCtx.imageSmoothingQuality = 'high';
 
+        // Calcula a escala de conversão do canvas de preview para o canvas de impressão
+        const scaleX = printCanvas.width / (this.canvas.width / this.SCALE_FACTOR);
+        const scaleY = printCanvas.height / (this.canvas.height / this.SCALE_FACTOR);
+
         // Desenha a imagem do usuário no canvas de alta resolução
         if (this.userImage) {
-            this.drawUserImageOnPrintCanvas(printCtx);
+            this.drawUserImageOnPrintCanvas(printCtx, scaleX, scaleY);
         }
         
         // Desenha o modelo PNG por cima da imagem do usuário.
-        // A proporção do modelo também é escalada para as dimensões de impressão.
-        const modelDrawWidth = this.modelImage.width * (this.PRINT_WIDTH_PX / (this.canvas.width/this.SCALE_FACTOR));
-        const modelDrawHeight = this.modelImage.height * (this.PRINT_HEIGHT_PX / (this.canvas.height/this.SCALE_FACTOR));
-        printCtx.drawImage(this.modelImage, 0, 0, modelDrawWidth, modelDrawHeight);
+        printCtx.drawImage(this.modelImage, 0, 0, printCanvas.width, printCanvas.height);
 
         // Desenha os textos finais no crachá de alta resolução.
-        this.drawTextsOnPrintCanvas(printCtx);
+        this.drawTextsOnPrintCanvas(printCtx, scaleY);
         
         // Adiciona a borda fina preta
         printCtx.strokeStyle = 'black';
         printCtx.lineWidth = 1;
         printCtx.strokeRect(0, 0, printCanvas.width, printCanvas.height);
 
-        // Cria o link de download.
+        // Cria o link de download com o nome do aluno
         const dataURL = printCanvas.toDataURL('image/png');
         const downloadLink = document.getElementById('downloadLink');
+        const fileName = document.getElementById('name').value.trim();
+        downloadLink.download = `${fileName || 'cracha-cetep'}.png`;
         downloadLink.href = dataURL;
     }
 
-    drawUserImageOnPrintCanvas(printCtx) {
+    drawUserImageOnPrintCanvas(printCtx, scaleX, scaleY) {
         const brightness = parseInt(document.getElementById('brightness').value);
         const contrast = parseInt(document.getElementById('contrast').value);
         printCtx.filter = `brightness(${100 + brightness}%) contrast(${100 + contrast}%)`;
-        
-        const scaleX = this.PRINT_WIDTH_PX / (this.canvas.width / this.SCALE_FACTOR);
-        const scaleY = this.PRINT_HEIGHT_PX / (this.canvas.height / this.SCALE_FACTOR);
         
         const photoAreaX = this.photoArea.x * scaleX;
         const photoAreaY = this.photoArea.y * scaleY;
@@ -536,7 +535,7 @@ class BadgeGenerator {
         printCtx.filter = 'none';
     }
 
-    drawTextsOnPrintCanvas(printCtx) {
+    drawTextsOnPrintCanvas(printCtx, scaleY) {
         const name = document.getElementById('name').value;
         const courseSelect = document.getElementById('courseSelect').value;
         const courseCustom = document.getElementById('courseCustom').value;
@@ -545,8 +544,6 @@ class BadgeGenerator {
         const locationCustom = document.getElementById('locationCustom').value;
         const location = locationSelect === 'custom' ? locationCustom : locationSelect;
 
-        const scaleY = this.PRINT_HEIGHT_PX / (this.canvas.height / this.SCALE_FACTOR);
-        
         const nameSize = parseInt(document.getElementById('nameSize').value) * scaleY;
         const courseSize = parseInt(document.getElementById('courseSize').value) * scaleY;
         const locationSize = parseInt(document.getElementById('locationSize').value) * scaleY;
