@@ -7,15 +7,15 @@
  * Use o formato "Versão [número]: [Descrição da modificação]".
  * Mantenha a lista limitada às 4 últimas alterações para clareza e concisão.
  *
+ * Versão 4.3: Ajuste da área de renderização quadrada.
+ * - Área de renderização diminuída em 25%.
+ * - Área de renderização movida 15px para cima.
  * Versão 4.2: Transformação da área de renderização para um quadrado.
  * - Área de renderização agora é um quadrado, com base nas novas coordenadas.
  * - Movida 20px para cima e 30px para a direita em relação à última posição.
  * Versão 4.1: Ajuste fino da área de renderização da imagem.
  * - Círculo aumentado em 20% do raio original.
  * - Área de renderização movida 40px para cima e 30px para a direita.
- * Versão 4.0: Ajuste da área de renderização circular da imagem.
- * - Aumentado o raio do círculo para ampliar a área da imagem.
- * - Alterado o centro X e Y para mover a área de renderização para a esquerda e para cima.
  */
 class BadgeGenerator {
     constructor() {
@@ -35,13 +35,13 @@ class BadgeGenerator {
         this.hasTransparency = true;
         
         // Coordenadas e dimensões da área de transparência para a foto do usuário.
-        // Os valores abaixo foram ajustados para criar uma área quadrada e
-        // movê-la para cima e para a direita.
+        // Os valores abaixo foram ajustados para diminuir a área em 25% e
+        // movê-la 15px para cima.
         this.photoArea = {
-            x: 190, // Nova posição X para mover 30px para a direita (160 + 30)
-            y: 420, // Nova posição Y para mover 20px para cima (440 - 20)
-            width: 500, // Largura do quadrado
-            height: 500 // Altura do quadrado
+            x: 190, // Posição X mantida do ajuste anterior
+            y: 405, // Nova posição Y para mover 15px para cima (420 - 15)
+            width: 375, // Nova largura (500 * 0.75)
+            height: 375 // Nova altura (500 * 0.75)
         };
 
         this.imagePosition = { x: 0, y: 0 };
