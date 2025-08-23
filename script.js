@@ -284,8 +284,6 @@ class BadgeGenerator {
             targetWidth = targetHeight * aspectRatio;
         }
         
-        // console.log(`[DEBUG-processamento] Quadrado lado: ${squareSize}, Target: ${targetWidth}x${targetHeight}, Aspect: ${aspectRatio}`);
-
         const resizedCanvas = document.createElement('canvas');
         resizedCanvas.width = targetWidth;
         resizedCanvas.height = targetHeight;
@@ -295,14 +293,11 @@ class BadgeGenerator {
                 quality: 3,
             });
 
-            // console.log('[DEBUG-pica] Redimensionamento concluído.');
-
             const processedImage = new Image();
             processedImage.onload = () => {
                 this.userImage = processedImage;
                 this.resetImageControls();
                 this.drawBadge();
-                // console.log(`[DEBUG-pica] Nova imagem processada: Largura=${processedImage.width}, Altura=${processedImage.height}`);
             };
             processedImage.src = result.toDataURL('image/png');
         } catch (error) {
@@ -349,7 +344,6 @@ class BadgeGenerator {
                 y: mouseY - this.imagePosition.y
             };
             this.canvas.style.cursor = 'grabbing';
-            // console.log(`[DEBUG-drag] Início do arrasto: Mouse X=${mouseX}, Y=${mouseY}. Imagem X=${this.imagePosition.x}, Y=${this.imagePosition.y}`);
         }
     }
 
@@ -371,8 +365,6 @@ class BadgeGenerator {
         document.getElementById('positionX').value = Math.round(this.imagePosition.x);
         document.getElementById('positionY').value = Math.round(this.imagePosition.y);
         
-        // console.log(`[DEBUG-drag] Mouse atual X=${mouseX}, Y=${mouseY}. Nova posição da imagem X=${this.imagePosition.x}, Y=${this.imagePosition.y}`);
-        
         this.updateSliderValues();
         this.drawBadge();
     }
@@ -380,7 +372,6 @@ class BadgeGenerator {
     endDrag() {
         this.isDragging = false;
         this.canvas.style.cursor = this.userImage ? 'grab' : 'default';
-        // console.log('Arrasto finalizado.');
     }
 
     drawBadge() {
@@ -423,11 +414,8 @@ class BadgeGenerator {
         const userDrawHeight = this.userImage.height * this.imageZoom;
         
         // Centraliza a imagem na área de recorte
-        const userDrawX = photoAreaX + (photoAreaWidth / 2) - (userDrawWidth / 2) + this.imagePosition.x;
-        const userDrawY = photoAreaY + (photoAreaHeight / 2) - (userDrawHeight / 2) + this.imagePosition.y;
-
-        // console.log(`[DEBUG-draw] Imagem do usuário (behind): X=${userDrawX}, Y=${userDrawY}, W=${userDrawWidth}, H=${userDrawHeight}`);
-        // console.log(`[DEBUG-draw] Área de transparência: X=${photoAreaX}, Y=${photoAreaY}, W=${photoAreaWidth}, H=${photoAreaHeight}`);
+        const userDrawX = photoAreaX + (photoAreaWidth / 2) - (userDrawWidth / 2) + (this.imagePosition.x / scale);
+        const userDrawY = photoAreaY + (photoAreaHeight / 2) - (userDrawHeight / 2) + (this.imagePosition.y / scale);
         
         ctx.save();
         ctx.beginPath();
