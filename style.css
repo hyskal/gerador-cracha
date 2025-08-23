@@ -7,11 +7,12 @@
  * Use o formato "Versão [número]: [Descrição da modificação]".
  * Mantenha a lista limitada às 4 últimas alterações para clareza e concisão.
  *
+ * Versão 2.4: Corrigido o artefato visual de borda preta na exibição do canvas.
+ * - Adicionado um ajuste de layout para resolver um erro de arredondamento de pixels que causava uma borda preta na visualização em tela.
  * Versão 2.3: Adicionada borda fina preta na impressão do canvas.
  * - Isso garante que o crachá impresso (via PDF ou impressora) tenha uma borda visível.
  * Versão 2.2: Corrigida a exibição dos controles de zoom na impressão.
  * - Adicionado `.zoom-controls` à lista de elementos ocultos na versão de impressão.
- * Versão 2.1: Separação do CSS do arquivo HTML original.
  */
 
 /* Reset e configurações base */
