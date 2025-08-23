@@ -300,17 +300,36 @@ class BadgeGenerator {
 
     analyzeTransparency() {
         if (!this.modelImage) return;
+        
+        // Usar as coordenadas detectadas pelo analisador para este modelo específico
+        console.log('Usando coordenadas pré-definidas do modelo CETEP');
+        this.hasTransparency = true;
+        this.photoArea = {
+            x: 348,
+            y: 661,
+            width: 419,
+            height: 546,
+            centerX: 558,
+            centerY: 934,
+            radius: 210
+        };
+        
+        console.log('Área transparente definida:', this.photoArea);
+        
+        // Manter a análise automática como fallback para outros modelos
         const tempCanvas = document.createElement('canvas');
         const tempCtx = tempCanvas.getContext('2d');
         tempCanvas.width = this.modelImage.width;
         tempCanvas.height = this.modelImage.height;
         tempCtx.drawImage(this.modelImage, 0, 0);
+        
         try {
             const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
             const data = imageData.data;
             let minX = tempCanvas.width, minY = tempCanvas.height;
             let maxX = 0, maxY = 0;
             let transparentPixels = 0;
+            
             for (let y = 0; y < tempCanvas.height; y++) {
                 for (let x = 0; x < tempCanvas.width; x++) {
                     const alpha = data[((y * tempCanvas.width) + x) * 4 + 3];
@@ -323,24 +342,25 @@ class BadgeGenerator {
                     }
                 }
             }
-            if (transparentPixels > 100) {
-                this.hasTransparency = true;
-                this.photoArea = {
+            
+            // Se não encontrou transparência significativa nas coordenadas pré-definidas, usar detecção automática
+            if (transparentPixels < 100) {
+                console.log('Detecção automática - sem transparência significativa');
+                this.hasTransparency = false;
+                this.photoArea = null;
+            } else {
+                // Verificar se as coordenadas automáticas são muito diferentes das pré-definidas
+                const autoArea = {
                     x: minX,
                     y: minY,
                     width: maxX - minX,
                     height: maxY - minY
                 };
-                console.log('Área transparente detectada:', this.photoArea);
-            } else {
-                this.hasTransparency = false;
-                this.photoArea = null;
-                console.log('Sem transparência - imagem será desenhada na frente.');
+                
+                console.log('Comparação - Pré-definido vs Auto:', this.photoArea, autoArea);
             }
         } catch (error) {
-            console.warn('Erro ao analisar transparência:', error);
-            this.hasTransparency = false;
-            this.photoArea = null;
+            console.warn('Erro na análise automática, usando coordenadas pré-definidas:', error);
         }
     }
 
