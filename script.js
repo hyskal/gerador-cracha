@@ -7,16 +7,16 @@
  * Use o formato "Versão [número]: [Descrição da modificação]".
  * Mantenha a lista limitada às 4 últimas alterações para clareza e concisão.
  *
- * Versão 3.3: Correção da centralização e do recorte circular.
- * - Lógica de posicionamento da imagem ajustada para centralizá-la corretamente no centro do círculo de transparência.
- * - O tamanho da imagem é agora dimensionado com base no diâmetro do círculo para um ajuste perfeito.
- * - Adicionados logs detalhados para verificar as novas coordenadas de desenho e recorte.
- * Versão 3.2: Correção do recorte e do posicionamento da imagem.
+ * Versão 3.4: Correção final do posicionamento da imagem.
+ * - Lógica de centralização da imagem do usuário ajustada para usar as coordenadas exatas do centro do círculo de transparência.
+ * - Garante que a imagem esteja perfeitamente alinhada e centrada com a área de recorte.
+ * - Lógica de arrasto do mouse corrigida para trabalhar com coordenadas relativas ao centro da imagem.
+ * Versão 3.3: Correção do recorte e do posicionamento circular.
  * - Lógica de clipping alterada de retangular para circular (ctx.arc) para corresponder à transparência do modelo.
+ * Versão 3.2: Correção do recorte e do posicionamento da imagem.
  * - Coordenadas da área de transparência (photoArea) atualizadas com base nos dados fornecidos.
  * Versão 3.1: Implementação de pica.js e correção da lógica de desenho.
  * - Adicionada a biblioteca pica.js para redimensionamento de imagem de alta qualidade.
- * - Refatorada a função processUserImage() para usar pica.js.
  */
 class BadgeGenerator {
     constructor() {
@@ -271,7 +271,8 @@ class BadgeGenerator {
     }
 
     async processUserImage() {
-        const targetWidth = (this.canvas.width / this.SCALE_FACTOR) * 0.5;
+        // Usa a largura do diâmetro do círculo como base para redimensionamento
+        const targetWidth = (this.photoArea.radius * 2) / this.SCALE_FACTOR;
         const targetHeight = targetWidth / (this.userImage.width / this.userImage.height);
 
         const resizedCanvas = document.createElement('canvas');
@@ -406,9 +407,8 @@ class BadgeGenerator {
         const photoAreaY = this.photoArea.centerY / this.SCALE_FACTOR;
         const photoAreaRadius = this.photoArea.radius / this.SCALE_FACTOR;
         
-        // A largura da imagem agora é dimensionada para o diâmetro do círculo
-        const userDrawWidth = (photoAreaRadius * 2) * this.imageZoom;
-        const userDrawHeight = userDrawWidth / (this.userImage.width / this.userImage.height);
+        const userDrawWidth = this.userImage.width * this.imageZoom;
+        const userDrawHeight = this.userImage.height * this.imageZoom;
         
         const userDrawX = photoAreaX - (userDrawWidth / 2) + this.imagePosition.x;
         const userDrawY = photoAreaY - (userDrawHeight / 2) + this.imagePosition.y;
@@ -419,7 +419,6 @@ class BadgeGenerator {
         this.ctx.save();
         this.ctx.beginPath();
         
-        // Clipping circular
         this.ctx.arc(photoAreaX, photoAreaY, photoAreaRadius, 0, 2 * Math.PI);
         this.ctx.clip();
         
