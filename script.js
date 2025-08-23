@@ -7,15 +7,15 @@
  * Use o formato "Versão [número]: [Descrição da modificação]".
  * Mantenha a lista limitada às 4 últimas alterações para clareza e concisão.
  *
+ * Versão 4.2: Transformação da área de renderização para um quadrado.
+ * - Área de renderização agora é um quadrado, com base nas novas coordenadas.
+ * - Movida 20px para cima e 30px para a direita em relação à última posição.
  * Versão 4.1: Ajuste fino da área de renderização da imagem.
  * - Círculo aumentado em 20% do raio original.
  * - Área de renderização movida 40px para cima e 30px para a direita.
  * Versão 4.0: Ajuste da área de renderização circular da imagem.
  * - Aumentado o raio do círculo para ampliar a área da imagem.
  * - Alterado o centro X e Y para mover a área de renderização para a esquerda e para cima.
- * Versão 3.5: Correção completa da área de transparência para exibição total da imagem.
- * - Ajustada a lógica de dimensionamento para garantir que a imagem caiba completamente na área circular.
- * - Corrigido o posicionamento inicial para centralizar a imagem na área de transparência.
  */
 class BadgeGenerator {
     constructor() {
@@ -34,17 +34,14 @@ class BadgeGenerator {
         this.modelImage = null;
         this.hasTransparency = true;
         
-        // Coordenadas e dimensões da área de transparência fornecidas pelo usuário
-        // Os valores abaixo foram ajustados para ampliar a área circular e
+        // Coordenadas e dimensões da área de transparência para a foto do usuário.
+        // Os valores abaixo foram ajustados para criar uma área quadrada e
         // movê-la para cima e para a direita.
         this.photoArea = {
-            x: 348,
-            y: 661,
-            width: 419,
-            height: 546,
-            centerX: 380, // Ajustado para mover a área para a direita
-            centerY: 710, // Ajustado para mover a área para cima
-            radius: 300   // Ajustado para ampliar a área circular em 20%
+            x: 190, // Nova posição X para mover 30px para a direita (160 + 30)
+            y: 420, // Nova posição Y para mover 20px para cima (440 - 20)
+            width: 500, // Largura do quadrado
+            height: 500 // Altura do quadrado
         };
 
         this.imagePosition = { x: 0, y: 0 };
@@ -272,9 +269,7 @@ class BadgeGenerator {
     }
 
     async processUserImage() {
-        // Calcula o tamanho ideal para garantir que a imagem caiba completamente no círculo
-        const circleRadius = this.photoArea.radius / this.SCALE_FACTOR;
-        const circleDiameter = circleRadius * 2;
+        const squareSize = Math.min(this.photoArea.width, this.photoArea.height);
         
         // Calcula as dimensões mantendo a proporção da imagem original
         let targetWidth, targetHeight;
@@ -282,15 +277,15 @@ class BadgeGenerator {
         
         if (aspectRatio >= 1) {
             // Imagem mais larga que alta
-            targetWidth = circleDiameter * 0.9; // 90% do diâmetro para margem de segurança
+            targetWidth = squareSize * 0.9; // 90% do lado para margem de segurança
             targetHeight = targetWidth / aspectRatio;
         } else {
             // Imagem mais alta que larga
-            targetHeight = circleDiameter * 0.9; // 90% do diâmetro para margem de segurança
+            targetHeight = squareSize * 0.9; // 90% do lado para margem de segurança
             targetWidth = targetHeight * aspectRatio;
         }
         
-        console.log(`[DEBUG-processamento] Círculo diâmetro: ${circleDiameter}, Target: ${targetWidth}x${targetHeight}, Aspect: ${aspectRatio}`);
+        console.log(`[DEBUG-processamento] Quadrado lado: ${squareSize}, Target: ${targetWidth}x${targetHeight}, Aspect: ${aspectRatio}`);
 
         const resizedCanvas = document.createElement('canvas');
         resizedCanvas.width = targetWidth;
@@ -341,14 +336,14 @@ class BadgeGenerator {
         const mouseY = (event.clientY - rect.top);
         
         const scaledPhotoArea = {
-            centerX: this.photoArea.centerX / this.SCALE_FACTOR,
-            centerY: this.photoArea.centerY / this.SCALE_FACTOR,
-            radius: this.photoArea.radius / this.SCALE_FACTOR
+            x: this.photoArea.x / this.SCALE_FACTOR,
+            y: this.photoArea.y / this.SCALE_FACTOR,
+            width: this.photoArea.width / this.SCALE_FACTOR,
+            height: this.photoArea.height / this.SCALE_FACTOR
         };
 
-        const distance = Math.sqrt(Math.pow(mouseX - scaledPhotoArea.centerX, 2) + Math.pow(mouseY - scaledPhotoArea.centerY, 2));
-
-        if (this.hasTransparency && this.userImage && distance <= scaledPhotoArea.radius) {
+        if (mouseX >= scaledPhotoArea.x && mouseX <= scaledPhotoArea.x + scaledPhotoArea.width &&
+            mouseY >= scaledPhotoArea.y && mouseY <= scaledPhotoArea.y + scaledPhotoArea.height) {
             this.isDragging = true;
             this.dragStart = {
                 x: mouseX - this.imagePosition.x,
@@ -369,9 +364,10 @@ class BadgeGenerator {
         this.imagePosition.y = mouseY - this.dragStart.y;
         
         // Limita o movimento para manter a imagem dentro de limites razoáveis
-        const maxOffset = 100;
-        this.imagePosition.x = Math.max(-maxOffset, Math.min(maxOffset, this.imagePosition.x));
-        this.imagePosition.y = Math.max(-maxOffset, Math.min(maxOffset, this.imagePosition.y));
+        const maxOffsetX = this.photoArea.width / 2;
+        const maxOffsetY = this.photoArea.height / 2;
+        this.imagePosition.x = Math.max(-maxOffsetX, Math.min(maxOffsetX, this.imagePosition.x));
+        this.imagePosition.y = Math.max(-maxOffsetY, Math.min(maxOffsetY, this.imagePosition.y));
         
         document.getElementById('positionX').value = Math.round(this.imagePosition.x);
         document.getElementById('positionY').value = Math.round(this.imagePosition.y);
@@ -397,13 +393,8 @@ class BadgeGenerator {
         
         if (this.userImage) {
             console.log('Desenhando imagem do usuário.');
-            if (this.hasTransparency) {
-                this.drawUserImageBehind();
-                this.drawModel();
-            } else {
-                this.drawModel();
-                this.drawUserImageInFront();
-            }
+            this.drawUserImageBehind();
+            this.drawModel();
         } else {
             console.log('Imagem do usuário não disponível. Desenhando apenas o modelo.');
             this.drawModel();
@@ -423,26 +414,27 @@ class BadgeGenerator {
         const contrast = parseInt(document.getElementById('contrast').value);
         this.ctx.filter = `brightness(${100 + brightness}%) contrast(${100 + contrast}%)`;
 
-        const photoAreaX = this.photoArea.centerX / this.SCALE_FACTOR;
-        const photoAreaY = this.photoArea.centerY / this.SCALE_FACTOR;
-        const photoAreaRadius = this.photoArea.radius / this.SCALE_FACTOR;
+        const photoAreaX = this.photoArea.x / this.SCALE_FACTOR;
+        const photoAreaY = this.photoArea.y / this.SCALE_FACTOR;
+        const photoAreaWidth = this.photoArea.width / this.SCALE_FACTOR;
+        const photoAreaHeight = this.photoArea.height / this.SCALE_FACTOR;
         
         // Calcula as dimensões da imagem com zoom aplicado
         const userDrawWidth = this.userImage.width * this.imageZoom;
         const userDrawHeight = this.userImage.height * this.imageZoom;
         
-        // Centraliza a imagem na área de transparência
-        const userDrawX = photoAreaX - (userDrawWidth / 2) + this.imagePosition.x;
-        const userDrawY = photoAreaY - (userDrawHeight / 2) + this.imagePosition.y;
+        // Centraliza a imagem na área de recorte
+        const userDrawX = photoAreaX + (photoAreaWidth / 2) - (userDrawWidth / 2) + this.imagePosition.x;
+        const userDrawY = photoAreaY + (photoAreaHeight / 2) - (userDrawHeight / 2) + this.imagePosition.y;
 
         console.log(`[DEBUG-draw] Imagem do usuário (behind): X=${userDrawX}, Y=${userDrawY}, W=${userDrawWidth}, H=${userDrawHeight}`);
-        console.log(`[DEBUG-draw] Área de transparência: Centro X=${photoAreaX}, Centro Y=${photoAreaY}, Raio=${photoAreaRadius}`);
+        console.log(`[DEBUG-draw] Área de transparência: X=${photoAreaX}, Y=${photoAreaY}, W=${photoAreaWidth}, H=${photoAreaHeight}`);
         
         this.ctx.save();
         this.ctx.beginPath();
         
-        // Cria o clipping circular
-        this.ctx.arc(photoAreaX, photoAreaY, photoAreaRadius, 0, 2 * Math.PI);
+        // Cria o clipping retangular
+        this.ctx.rect(photoAreaX, photoAreaY, photoAreaWidth, photoAreaHeight);
         this.ctx.clip();
         
         // Desenha a imagem dentro do clipping
@@ -454,28 +446,6 @@ class BadgeGenerator {
         this.ctx.restore();
         this.ctx.filter = 'none';
         console.log('Imagem do usuário desenhada atrás do modelo (com transparência).');
-    }
-
-    drawUserImageInFront() {
-        const brightness = parseInt(document.getElementById('brightness').value);
-        const contrast = parseInt(document.getElementById('contrast').value);
-        this.ctx.filter = `brightness(${100 + brightness}%) contrast(${100 + contrast}%)`;
-        
-        const canvasWidth = this.canvas.width / this.SCALE_FACTOR;
-        const userDrawWidth = this.userImage.width * this.imageZoom;
-        const userDrawHeight = this.userImage.height * this.imageZoom;
-        
-        const userDrawX = (canvasWidth / 2) - (userDrawWidth / 2) + this.imagePosition.x;
-        const userDrawY = (this.canvas.height / this.SCALE_FACTOR / 2) - (userDrawHeight / 2) + this.imagePosition.y;
-
-        console.log(`[DEBUG-draw] Imagem do usuário (frente): X=${userDrawX}, Y=${userDrawY}, W=${userDrawWidth}, H=${userDrawHeight}`);
-        
-        this.ctx.drawImage(
-            this.userImage,
-            userDrawX, userDrawY, userDrawWidth, userDrawHeight
-        );
-        this.ctx.filter = 'none';
-        console.log('Imagem do usuário desenhada na frente do modelo.');
     }
 
     drawTexts() {
@@ -536,61 +506,44 @@ class BadgeGenerator {
         const scaleX = this.PRINT_WIDTH_PX / (this.canvas.width / this.SCALE_FACTOR);
         const scaleY = this.PRINT_HEIGHT_PX / (this.canvas.height / this.SCALE_FACTOR);
         printCtx.scale(scaleX, scaleY);
-        if (this.userImage && this.hasTransparency) {
+
+        if (this.userImage) {
             this.drawUserImageOnPrintCanvas(printCtx);
-            printCtx.drawImage(this.modelImage, 0, 0, this.canvas.width / this.SCALE_FACTOR, this.canvas.height / this.SCALE_FACTOR);
-        } else if (this.userImage && !this.hasTransparency) {
-            printCtx.drawImage(this.modelImage, 0, 0, this.canvas.width / this.SCALE_FACTOR, this.canvas.height / this.SCALE_FACTOR);
-            this.drawUserImageOnPrintCanvas(printCtx, true);
-        } else {
-            printCtx.drawImage(this.modelImage, 0, 0, this.canvas.width / this.SCALE_FACTOR, this.canvas.height / this.SCALE_FACTOR);
         }
+        
+        printCtx.drawImage(this.modelImage, 0, 0, this.canvas.width / this.SCALE_FACTOR, this.canvas.height / this.SCALE_FACTOR);
         this.drawTextsOnPrintCanvas(printCtx);
         const dataURL = printCanvas.toDataURL('image/png');
         const downloadLink = document.getElementById('downloadLink');
         downloadLink.href = dataURL;
     }
 
-    drawUserImageOnPrintCanvas(printCtx, inFront = false) {
+    drawUserImageOnPrintCanvas(printCtx) {
         const brightness = parseInt(document.getElementById('brightness').value);
         const contrast = parseInt(document.getElementById('contrast').value);
         printCtx.filter = `brightness(${100 + brightness}%) contrast(${100 + contrast}%)`;
         
-        if (inFront || !this.hasTransparency) {
-            // Desenho na frente sem clipping
-            const canvasWidth = this.canvas.width / this.SCALE_FACTOR;
-            const userDrawWidth = this.userImage.width * this.imageZoom * this.SCALE_FACTOR;
-            const userDrawHeight = this.userImage.height * this.imageZoom * this.SCALE_FACTOR;
-            
-            const userDrawX = (canvasWidth * this.SCALE_FACTOR / 2) - (userDrawWidth / 2) + (this.imagePosition.x * this.SCALE_FACTOR);
-            const userDrawY = (this.canvas.height / 2) - (userDrawHeight / 2) + (this.imagePosition.y * this.SCALE_FACTOR);
-            
-            printCtx.drawImage(
-                this.userImage,
-                userDrawX, userDrawY, userDrawWidth, userDrawHeight
-            );
-        } else {
-            // Desenho atrás com clipping circular
-            const photoAreaX = this.photoArea.centerX;
-            const photoAreaY = this.photoArea.centerY;
-            const photoAreaRadius = this.photoArea.radius;
-            
-            const userDrawWidth = this.userImage.width * this.imageZoom * this.SCALE_FACTOR;
-            const userDrawHeight = this.userImage.height * this.imageZoom * this.SCALE_FACTOR;
-            
-            const userDrawX = photoAreaX - (userDrawWidth / 2) + (this.imagePosition.x * this.SCALE_FACTOR);
-            const userDrawY = photoAreaY - (userDrawHeight / 2) + (this.imagePosition.y * this.SCALE_FACTOR);
-            
-            printCtx.save();
-            printCtx.beginPath();
-            printCtx.arc(photoAreaX, photoAreaY, photoAreaRadius, 0, 2 * Math.PI);
-            printCtx.clip();
-            printCtx.drawImage(
-                this.userImage,
-                userDrawX, userDrawY, userDrawWidth, userDrawHeight
-            );
-            printCtx.restore();
-        }
+        // Desenho atrás com clipping retangular para impressão
+        const photoAreaX = this.photoArea.x;
+        const photoAreaY = this.photoArea.y;
+        const photoAreaWidth = this.photoArea.width;
+        const photoAreaHeight = this.photoArea.height;
+        
+        const userDrawWidth = this.userImage.width * this.imageZoom * this.SCALE_FACTOR;
+        const userDrawHeight = this.userImage.height * this.imageZoom * this.SCALE_FACTOR;
+        
+        const userDrawX = photoAreaX + (photoAreaWidth / 2) - (userDrawWidth / 2) + (this.imagePosition.x * this.SCALE_FACTOR);
+        const userDrawY = photoAreaY + (photoAreaHeight / 2) - (userDrawHeight / 2) + (this.imagePosition.y * this.SCALE_FACTOR);
+        
+        printCtx.save();
+        printCtx.beginPath();
+        printCtx.rect(photoAreaX, photoAreaY, photoAreaWidth, photoAreaHeight);
+        printCtx.clip();
+        printCtx.drawImage(
+            this.userImage,
+            userDrawX, userDrawY, userDrawWidth, userDrawHeight
+        );
+        printCtx.restore();
         printCtx.filter = 'none';
     }
 
