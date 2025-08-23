@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analisador de Transparência</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .upload-section {
+            border: 2px dashed #3b82f6;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 20px;
+            background: #f8fafc;
+        }
+        .upload-section:hover {
+            border-color: #1d4ed8;
+            background: #eff6ff;
+        }
+        input[type="file"] {
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+        }
+        canvas {
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            margin: 10px;
+        }
+        .results {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .coordinate {
+            background: #3b82f6;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            display: inline-block;
+            margin: 5px;
+            font-family: monospace;
+        }
+        .highlight {
+            background: #dc2626;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .info-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 15px;
+        }
+        .canvas-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+        }
+        .canvas-wrapper {
+            text-align: center;
+        }
+        .canvas-wrapper h3 {
+            margin: 0 0 10px 0;
+            color: #374151;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Analisador de Transparência - Modelo de Crachá</h1>
+        
+        <div class="upload-section">
+            <h3>📁 Carregar Modelo PNG</h3>
+            <p>Faça upload da imagem do modelo do crachá para analisar as coordenadas da área transparente</p>
+            <input type="file" id="imageInput" accept="image/png" />
+        </div>
+
+        <div class="canvas-container">
+            <div class="canvas-wrapper">
+                <h3>Imagem Original</h3>
+                <canvas id="originalCanvas" width="300" height="400"></canvas>
+            </div>
+            <div class="canvas-wrapper">
+                <h3>Mapa de Transparência</h3>
+                <canvas id="transparencyCanvas" width="300" height="400"></canvas>
+            </div>
+        </div>
+
+        <div class="results" id="results" style="display: none;">
+            <h2>📊 Resultados da Análise</h2>
+            <div id="transparencyInfo"></div>
+            
+            <h3>🎯 Coordenadas da Área Transparente:</h3>
+            <div id="coordinates"></div>
+            
+            <h3>📋 Código para Implementação:</h3>
+            <pre id="codeOutput" style="background: #1f2937; color: #f9fafb; padding: 20px; border-radius: 8px; overflow-x: auto;"></pre>
+        </div>
+    </div>
+
+    <script>
+        const imageInput = document.getElementById('imageInput');
+        const originalCanvas = document.getElementById('originalCanvas');
+        const transparencyCanvas = document.getElementById('transparencyCanvas');
+        const results = document.getElementById('results');
+        const transparencyInfo = document.getElementById('transparencyInfo');
+        const coordinates = document.getElementById('coordinates');
+        const codeOutput = document.getElementById('codeOutput');
+        
+        const originalCtx = originalCanvas.getContext('2d');
+        const transparencyCtx = transparencyCanvas.getContext('2d');
+
+        imageInput.addEventListener('change', handleImageUpload);
+
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (!file.type.includes('png')) {
+                alert('Por favor, selecione apenas arquivos PNG com transparência.');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => analyzeTransparency(img);
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function analyzeTransparency(img) {
+            // Ajustar canvas para o tamanho da imagem
+            const scale = Math.min(300 / img.width, 400 / img.height);
+            const displayWidth = img.width * scale;
+            const displayHeight = img.height * scale;
+            
+            originalCanvas.width = displayWidth;
+            originalCanvas.height = displayHeight;
+            transparencyCanvas.width = displayWidth;
+            transparencyCanvas.height = displayHeight;
+
+            // Desenhar imagem original
+            originalCtx.drawImage(img, 0, 0, displayWidth, displayHeight);
+
+            // Criar canvas temporário no tamanho original para análise precisa
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCanvas.width = img.width;
+            tempCanvas.height = img.height;
+            tempCtx.drawImage(img, 0, 0);
+
+            try {
+                const imageData = tempCtx.getImageData(0, 0, img.width, img.height);
+                const data = imageData.data;
+
+                let minX = img.width, minY = img.height;
+                let maxX = 0, maxY = 0;
+                let transparentPixels = 0;
+                let totalPixels = img.width * img.height;
+
+                // Criar mapa visual de transparência
+                const transparencyData = transparencyCtx.createImageData(displayWidth, displayHeight);
+                const tData = transparencyData.data;
+
+                for (let y = 0; y < img.height; y++) {
+                    for (let x = 0; x < img.width; x++) {
+                        const index = (y * img.width + x) * 4;
+                        const alpha = data[index + 3];
+
+                        if (alpha < 128) { // Pixel transparente/semi-transparente
+                            transparentPixels++;
+                            if (x < minX) minX = x;
+                            if (y < minY) minY = y;
+                            if (x > maxX) maxX = x;
+                            if (y > maxY) maxY = y;
+
+                            // Marcar pixel transparente em vermelho no mapa
+                            const displayX = Math.floor(x * scale);
+                            const displayY = Math.floor(y * scale);
+                            if (displayX < displayWidth && displayY < displayHeight) {
+                                const tIndex = (displayY * displayWidth + displayX) * 4;
+                                tData[tIndex] = 255;     // R
+                                tData[tIndex + 1] = 0;   // G
+                                tData[tIndex + 2] = 0;   // B
+                                tData[tIndex + 3] = 200; // A
+                            }
+                        } else {
+                            // Pixel opaco - mostrar em azul transparente
+                            const displayX = Math.floor(x * scale);
+                            const displayY = Math.floor(y * scale);
+                            if (displayX < displayWidth && displayY < displayHeight) {
+                                const tIndex = (displayY * displayWidth + displayX) * 4;
+                                tData[tIndex] = 0;       // R
+                                tData[tIndex + 1] = 100; // G
+                                tData[tIndex + 2] = 255; // B
+                                tData[tIndex + 3] = 50;  // A
+                            }
+                        }
+                    }
+                }
+
+                transparencyCtx.putImageData(transparencyData, 0, 0);
+
+                if (transparentPixels > 100) {
+                    const photoArea = {
+                        x: minX,
+                        y: minY,
+                        width: maxX - minX,
+                        height: maxY - minY,
+                        centerX: minX + (maxX - minX) / 2,
+                        centerY: minY + (maxY - minY) / 2,
+                        radius: Math.min(maxX - minX, maxY - minY) / 2
+                    };
+
+                    displayResults(photoArea, transparentPixels, totalPixels, img.width, img.height);
+                } else {
+                    transparencyInfo.innerHTML = '<div class="highlight">❌ Nenhuma área transparente significativa detectada!</div>';
+                    results.style.display = 'block';
+                }
+
+            } catch (error) {
+                console.error('Erro ao analisar transparência:', error);
+                transparencyInfo.innerHTML = '<div class="highlight">❌ Erro ao analisar a imagem</div>';
+                results.style.display = 'block';
+            }
+        }
+
+        function displayResults(photoArea, transparentPixels, totalPixels, imgWidth, imgHeight) {
+            const transparencyPercent = ((transparentPixels / totalPixels) * 100).toFixed(1);
+
+            transparencyInfo.innerHTML = `
+                <div class="info-grid">
+                    <div class="info-card">
+                        <h4>🖼️ Dimensões da Imagem</h4>
+                        <p><strong>Largura:</strong> ${imgWidth}px<br>
+                        <strong>Altura:</strong> ${imgHeight}px</p>
+                    </div>
+                    <div class="info-card">
+                        <h4>👁️ Transparência Detectada</h4>
+                        <p><strong>Pixels transparentes:</strong> ${transparentPixels.toLocaleString()}<br>
+                        <strong>Porcentagem:</strong> ${transparencyPercent}%</p>
+                    </div>
+                    <div class="info-card">
+                        <h4>📐 Área da Foto</h4>
+                        <p><strong>Largura:</strong> ${photoArea.width}px<br>
+                        <strong>Altura:</strong> ${photoArea.height}px</p>
+                    </div>
+                    <div class="info-card">
+                        <h4>🎯 Centro da Área</h4>
+                        <p><strong>X:</strong> ${Math.round(photoArea.centerX)}px<br>
+                        <strong>Y:</strong> ${Math.round(photoArea.centerY)}px</p>
+                    </div>
+                </div>
+            `;
+
+            coordinates.innerHTML = `
+                <div class="coordinate">X: ${photoArea.x}</div>
+                <div class="coordinate">Y: ${photoArea.y}</div>
+                <div class="coordinate">Largura: ${photoArea.width}</div>
+                <div class="coordinate">Altura: ${photoArea.height}</div>
+                <div class="coordinate">Centro X: ${Math.round(photoArea.centerX)}</div>
+                <div class="coordinate">Centro Y: ${Math.round(photoArea.centerY)}</div>
+                <div class="coordinate">Raio: ${Math.round(photoArea.radius)}</div>
+            `;
+
+            const code = `// Coordenadas da área transparente detectada
+const photoArea = {
+    x: ${photoArea.x},
+    y: ${photoArea.y},
+    width: ${photoArea.width},
+    height: ${photoArea.height},
+    centerX: ${Math.round(photoArea.centerX)},
+    centerY: ${Math.round(photoArea.centerY)},
+    radius: ${Math.round(photoArea.radius)}
+};
+
+// Para usar no seu BadgeGenerator:
+this.photoArea = {
+    x: ${photoArea.x},
+    y: ${photoArea.y},
+    width: ${photoArea.width},
+    height: ${photoArea.height}
+};
+
+// Implementação do clipping circular:
+const centerX = photoArea.centerX;
+const centerY = photoArea.centerY;
+const radius = photoArea.radius;
+
+ctx.beginPath();
+ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+ctx.clip();`;
+
+            codeOutput.textContent = code;
+            results.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
