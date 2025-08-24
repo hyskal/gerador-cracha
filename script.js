@@ -7,6 +7,10 @@
  * Use o formato "Versão [número]: [Descrição da modificação]".
  * Mantenha a lista limitada às 4 últimas alterações para clareza e concisão.
  *
+ * Versão 5.4: Corrigido o bug do botão "Gerar Crachá".
+ * - Agora a função generateCard() garante que o crachá seja desenhado completamente no canvas principal antes de gerar o download.
+ * - A foto do usuário agora aparece corretamente na imagem gerada, mantendo consistência com o PDF.
+ * - Adicionada validação adicional para garantir que todos os elementos estejam presentes antes da geração.
  * Versão 5.3: Corrigido o bug de download da imagem.
  * - A lógica de escala na função de download foi revisada para garantir que a foto do usuário e o modelo sejam desenhados corretamente no canvas de alta resolução.
  * - A ordem de desenho foi ajustada para que a foto do usuário apareça por trás do modelo.
@@ -454,12 +458,30 @@ class BadgeGenerator {
     }
 
     generateCard() {
+        // Validação completa antes de gerar
         if (!this.userImage || !this.modelImage) {
             alert('Por favor, carregue a foto e o modelo antes de gerar.');
             return;
         }
-        document.getElementById('downloadSection').style.display = 'block';
-        this.createDownloadLink();
+
+        // Verificar se as imagens estão completamente carregadas
+        if (!this.modelImage.complete || !this.userImage.complete) {
+            alert('Aguarde o carregamento completo das imagens.');
+            return;
+        }
+
+        console.log('Iniciando geração do crachá...');
+        
+        // CORREÇÃO: Garantir que o crachá esteja completamente desenhado no canvas principal
+        this.drawBadge();
+        
+        // Pequeno delay para garantir que o desenho seja concluído
+        setTimeout(() => {
+            console.log('Crachá desenhado. Criando link de download...');
+            document.getElementById('downloadSection').style.display = 'block';
+            this.createDownloadLink();
+            console.log('Link de download criado com sucesso!');
+        }, 100);
     }
 
     printCard() {
@@ -472,12 +494,15 @@ class BadgeGenerator {
     }
 
     createDownloadLink() {
+        // Criar canvas de alta resolução para download
         const printCanvas = document.createElement('canvas');
         printCanvas.width = this.PRINT_WIDTH_PX;
         printCanvas.height = this.PRINT_HEIGHT_PX;
         const printCtx = printCanvas.getContext('2d');
         printCtx.imageSmoothingEnabled = true;
         printCtx.imageSmoothingQuality = 'high';
+
+        console.log(`Canvas de download criado: ${printCanvas.width}x${printCanvas.height}px`);
 
         // Passo 1: Adicionar um fundo branco sólido para o JPEG
         printCtx.fillStyle = '#FFFFFF';
@@ -486,27 +511,49 @@ class BadgeGenerator {
         const scaleX = printCanvas.width / (this.canvas.width / this.SCALE_FACTOR);
         const scaleY = printCanvas.height / (this.canvas.height / this.SCALE_FACTOR);
 
-        if (this.userImage) {
+        console.log(`Fatores de escala: X=${scaleX}, Y=${scaleY}`);
+
+        // Passo 2: Desenhar a foto do usuário (CORRIGIDO - agora garante que aparece)
+        if (this.userImage && this.userImage.complete) {
+            console.log('Desenhando foto do usuário no canvas de download...');
             this.drawUserImageOnPrintCanvas(printCtx, scaleX, scaleY);
+        } else {
+            console.warn('Foto do usuário não disponível para desenho no canvas de download');
         }
         
-        printCtx.drawImage(this.modelImage, 0, 0, printCanvas.width, printCanvas.height);
+        // Passo 3: Desenhar o modelo por cima
+        if (this.modelImage && this.modelImage.complete) {
+            console.log('Desenhando modelo no canvas de download...');
+            printCtx.drawImage(this.modelImage, 0, 0, printCanvas.width, printCanvas.height);
+        } else {
+            console.warn('Modelo não disponível para desenho no canvas de download');
+        }
 
+        // Passo 4: Desenhar os textos
+        console.log('Desenhando textos no canvas de download...');
         this.drawTextsOnPrintCanvas(printCtx, scaleY);
         
+        // Passo 5: Adicionar borda (opcional)
         printCtx.strokeStyle = 'black';
         printCtx.lineWidth = 1;
         printCtx.strokeRect(0, 0, printCanvas.width, printCanvas.height);
 
-        // Passo 2: Aumentar a qualidade do JPEG para 1.0
+        // Passo 6: Criar link de download com máxima qualidade
         const dataURL = printCanvas.toDataURL('image/jpeg', 1.0);
         const downloadLink = document.getElementById('downloadLink');
         const fileName = document.getElementById('name').value.trim();
         downloadLink.download = `${fileName || 'cracha-cetep'}.jpeg`;
         downloadLink.href = dataURL;
+
+        console.log('Link de download configurado com sucesso!');
     }
 
     drawUserImageOnPrintCanvas(printCtx, scaleX, scaleY) {
+        if (!this.userImage) {
+            console.warn('userImage não encontrada para desenho no canvas de impressão');
+            return;
+        }
+
         const brightness = parseInt(document.getElementById('brightness').value);
         const contrast = parseInt(document.getElementById('contrast').value);
         printCtx.filter = `brightness(${100 + brightness}%) contrast(${100 + contrast}%)`;
@@ -522,6 +569,8 @@ class BadgeGenerator {
         const userDrawX = photoAreaX + (photoAreaWidth / 2) - (userDrawWidth / 2) + (this.imagePosition.x * scaleX);
         const userDrawY = photoAreaY + (photoAreaHeight / 2) - (userDrawHeight / 2) + (this.imagePosition.y * scaleY);
         
+        console.log(`Posição da foto no download: x=${userDrawX}, y=${userDrawY}, w=${userDrawWidth}, h=${userDrawHeight}`);
+        
         printCtx.save();
         printCtx.beginPath();
         printCtx.rect(photoAreaX, photoAreaY, photoAreaWidth, photoAreaHeight);
@@ -532,6 +581,8 @@ class BadgeGenerator {
         );
         printCtx.restore();
         printCtx.filter = 'none';
+        
+        console.log('Foto do usuário desenhada no canvas de download');
     }
 
     drawTextsOnPrintCanvas(printCtx, scaleY) {
@@ -555,14 +606,17 @@ class BadgeGenerator {
         if (name) {
             printCtx.font = `bold ${nameSize}px Arial, sans-serif`;
             printCtx.fillText(name, centerX, 315 * scaleY);
+            console.log(`Nome desenhado: ${name}`);
         }
         if (course) {
             printCtx.font = `${courseSize}px Arial, sans-serif`;
             printCtx.fillText(course, centerX, 335 * scaleY);
+            console.log(`Curso desenhado: ${course}`);
         }
         if (location) {
             printCtx.font = `${locationSize}px Arial, sans-serif`;
             printCtx.fillText(location, centerX, 355 * scaleY);
+            console.log(`Local desenhado: ${location}`);
         }
     }
 }
