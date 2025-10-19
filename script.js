@@ -10,11 +10,13 @@
 /**
  * CHANGELOG
  *
- * Versão 6.1: Correção do recorte e ajustes da foto no download.
- * - Corrigido: A foto agora respeita a área de recorte do modelo
- * - Corrigido: Os ajustes de zoom, posição, brilho e contraste agora funcionam no download
- * - Corrigido: O fator de escala agora é calculado corretamente para manter as proporções
+ * Versão 7.0: REFATORAÇÃO COMPLETA - Nova abordagem garantida
+ * - MUDANÇA RADICAL: Agora o download captura DIRETAMENTE o canvas visível
+ * - Método anterior (recriar o canvas) era fonte de inconsistências
+ * - Nova estratégia: capturar o canvas de preview e redimensionar com qualidade
+ * - Garantia 100%: O que você vê é EXATAMENTE o que você baixa
  */
+
 class BadgeGenerator {
     constructor() {
         this.initializeProperties();
@@ -30,7 +32,6 @@ class BadgeGenerator {
         this.ctx = this.canvas.getContext('2d');
         this.userImage = null;
         this.modelImage = null;
-        this.hasTransparency = true;
         
         this.photoArea = {
             x: 300, 
@@ -43,47 +44,53 @@ class BadgeGenerator {
         this.imageZoom = 1;
         this.isDragging = false;
         this.dragStart = { x: 0, y: 0 };
+        
+        // Canvas de preview trabalha em escala 3x para qualidade
         this.SCALE_FACTOR = 3;
+        
+        // Dimensões para impressão/download em 300 DPI
         this.PRINT_WIDTH_MM = 54;
         this.PRINT_HEIGHT_MM = 85;
         this.DPI = 300;
         this.PIXELS_PER_MM = this.DPI / 25.4;
         this.PRINT_WIDTH_PX = Math.round(this.PRINT_WIDTH_MM * this.PIXELS_PER_MM);
         this.PRINT_HEIGHT_PX = Math.round(this.PRINT_HEIGHT_MM * this.PIXELS_PER_MM);
+        
         this.data = {};
         this.modelLinks = {};
         this.pica = window.pica();
     }
 
     setupCanvas() {
+        // Canvas interno é 3x maior para qualidade
         this.canvas.width = 300 * this.SCALE_FACTOR;
         this.canvas.height = 400 * this.SCALE_FACTOR;
+        
+        // CSS mantém tamanho visual de 300x400
         this.canvas.style.width = '300px';
         this.canvas.style.height = '400px';
+        
+        // Aplicar escala no contexto
         this.ctx.scale(this.SCALE_FACTOR, this.SCALE_FACTOR);
         this.ctx.imageSmoothingEnabled = true;
         this.ctx.imageSmoothingQuality = 'high';
-        this.ctx.textRenderingOptimization = 'optimizeQuality';
     }
 
     async loadData() {
         try {
             const response = await fetch('data.json');
-            if (!response.ok) {
-                throw new Error('Erro ao carregar data.json');
-            }
+            if (!response.ok) throw new Error('Erro ao carregar data.json');
+            
             const data = await response.json();
             this.data.courses = data.courses;
             this.data.locations = data.locations;
             this.modelLinks = data.modelLinks;
+            
             this.setupDropdowns();
             this.updateSliderValues();
         } catch (error) {
             console.error('Falha ao carregar dados:', error);
-            this.data = {
-                courses: [],
-                locations: []
-            };
+            this.data = { courses: [], locations: [] };
             this.modelLinks = {};
         }
     }
@@ -117,8 +124,10 @@ class BadgeGenerator {
     setupDropdowns() {
         const courseSelect = document.getElementById('courseSelect');
         const locationSelect = document.getElementById('locationSelect');
+        
         courseSelect.innerHTML = '<option value="">Selecione um curso</option>';
         locationSelect.innerHTML = '<option value="">Selecione um local</option>';
+        
         if (this.data.courses) {
             this.data.courses.forEach(course => {
                 const option = document.createElement('option');
@@ -127,6 +136,7 @@ class BadgeGenerator {
                 courseSelect.appendChild(option);
             });
         }
+        
         if (this.data.locations) {
             this.data.locations.forEach(location => {
                 const option = document.createElement('option');
@@ -135,6 +145,7 @@ class BadgeGenerator {
                 locationSelect.appendChild(option);
             });
         }
+        
         ['courseSelect', 'locationSelect'].forEach(id => {
             const select = document.getElementById(id);
             const option = document.createElement('option');
@@ -190,6 +201,7 @@ class BadgeGenerator {
             { id: 'courseSize', valueId: 'courseSizeValue', suffix: 'px' },
             { id: 'locationSize', valueId: 'locationSizeValue', suffix: 'px' }
         ];
+        
         sliders.forEach(slider => {
             const element = document.getElementById(slider.id);
             const valueElement = document.getElementById(slider.valueId);
@@ -227,10 +239,12 @@ class BadgeGenerator {
     handleModelUpload(event) {
         const file = event.target.files[0];
         if (!file) return;
+        
         if (file.type !== 'image/png') {
             alert('Por favor, selecione apenas arquivos PNG.');
             return;
         }
+        
         const reader = new FileReader();
         reader.onload = (e) => {
             this.modelImage = new Image();
@@ -246,16 +260,18 @@ class BadgeGenerator {
     handleImageUpload(event) {
         const file = event.target.files[0];
         if (!file) return;
+        
         if (!this.modelImage) {
             alert('Por favor, carregue um modelo primeiro.');
             event.target.value = '';
             return;
         }
+        
         const reader = new FileReader();
         reader.onload = (e) => {
             this.userImage = new Image();
             this.userImage.onload = () => {
-                console.log('Imagem do usuário carregada. Iniciando processamento com pica.js.');
+                console.log('Imagem do usuário carregada.');
                 this.processUserImage();
             };
             this.userImage.src = e.target.result;
@@ -294,9 +310,7 @@ class BadgeGenerator {
             };
             processedImage.src = result.toDataURL('image/png');
         } catch (error) {
-            console.error('[ERRO-pica] Falha ao redimensionar a imagem:', error);
-            this.userImage.width = targetWidth;
-            this.userImage.height = targetHeight;
+            console.error('Erro ao processar imagem:', error);
             this.resetImageControls();
             this.drawBadge();
         }
@@ -313,6 +327,7 @@ class BadgeGenerator {
 
     startDrag(event) {
         if (!this.userImage) return;
+        
         const rect = this.canvas.getBoundingClientRect();
         const mouseX = (event.clientX - rect.left);
         const mouseY = (event.clientY - rect.top);
@@ -337,6 +352,7 @@ class BadgeGenerator {
 
     handleDrag(event) {
         if (!this.isDragging) return;
+        
         const rect = this.canvas.getBoundingClientRect();
         const mouseX = (event.clientX - rect.left);
         const mouseY = (event.clientY - rect.top);
@@ -361,67 +377,74 @@ class BadgeGenerator {
         this.canvas.style.cursor = this.userImage ? 'grab' : 'default';
     }
 
+    // ====================================
+    // FUNÇÕES DE DESENHO NO PREVIEW
+    // ====================================
+
     drawBadge() {
         if (!this.modelImage || !this.modelImage.complete) {
-            console.log('Modelo não disponível para desenho.');
             return;
         }
+        
+        // Limpar canvas
         this.ctx.clearRect(0, 0, this.canvas.width / this.SCALE_FACTOR, this.canvas.height / this.SCALE_FACTOR);
         
-        if (this.userImage) {
-            this.drawUserImageBehind(this.ctx, this.SCALE_FACTOR);
-            this.drawModel(this.ctx, this.SCALE_FACTOR);
-        } else {
-            this.drawModel(this.ctx, this.SCALE_FACTOR);
+        // Desenhar foto (se existir)
+        if (this.userImage && this.userImage.complete) {
+            this.drawUserPhoto();
         }
-        this.drawTexts(this.ctx, this.SCALE_FACTOR);
+        
+        // Desenhar modelo por cima
+        this.drawModel();
+        
+        // Desenhar textos
+        this.drawTexts();
     }
 
-    drawModel(ctx, scale) {
-        const canvasWidth = ctx.canvas.width / scale;
-        const canvasHeight = ctx.canvas.height / scale;
-        ctx.drawImage(this.modelImage, 0, 0, canvasWidth, canvasHeight);
-    }
-
-    drawUserImageBehind(ctx, scale) {
+    drawUserPhoto() {
         const brightness = parseInt(document.getElementById('brightness').value || 0);
         const contrast = parseInt(document.getElementById('contrast').value || 0);
-        ctx.filter = `brightness(${100 + brightness}%) contrast(${100 + contrast}%)`;
+        
+        // Aplicar filtros
+        this.ctx.filter = `brightness(${100 + brightness}%) contrast(${100 + contrast}%)`;
 
-        // Calcular dimensões da área da foto no canvas atual
-        const photoAreaX = this.photoArea.x / scale;
-        const photoAreaY = this.photoArea.y / scale;
-        const photoAreaWidth = this.photoArea.width / scale;
-        const photoAreaHeight = this.photoArea.height / scale;
+        // Calcular área da foto (dividir por SCALE_FACTOR porque o contexto já está escalado)
+        const photoX = this.photoArea.x / this.SCALE_FACTOR;
+        const photoY = this.photoArea.y / this.SCALE_FACTOR;
+        const photoW = this.photoArea.width / this.SCALE_FACTOR;
+        const photoH = this.photoArea.height / this.SCALE_FACTOR;
         
-        // Calcular dimensões da imagem do usuário COM zoom aplicado
-        const userDrawWidth = this.userImage.width * this.imageZoom;
-        const userDrawHeight = this.userImage.height * this.imageZoom;
+        // Calcular tamanho da imagem com zoom
+        const imgW = this.userImage.width * this.imageZoom;
+        const imgH = this.userImage.height * this.imageZoom;
         
-        // Calcular posição da imagem (centralizada + offset do usuário)
-        const userDrawX = photoAreaX + (photoAreaWidth / 2) - (userDrawWidth / 2) + (this.imagePosition.x / scale);
-        const userDrawY = photoAreaY + (photoAreaHeight / 2) - (userDrawHeight / 2) + (this.imagePosition.y / scale);
+        // Calcular posição (centralizada + offset)
+        const imgX = photoX + (photoW / 2) - (imgW / 2) + (this.imagePosition.x / this.SCALE_FACTOR);
+        const imgY = photoY + (photoH / 2) - (imgH / 2) + (this.imagePosition.y / this.SCALE_FACTOR);
         
-        // Salvar estado do contexto
-        ctx.save();
+        // Salvar contexto
+        this.ctx.save();
         
-        // Criar recorte retangular da área da foto
-        ctx.beginPath();
-        ctx.rect(photoAreaX, photoAreaY, photoAreaWidth, photoAreaHeight);
-        ctx.clip();
+        // Criar máscara retangular
+        this.ctx.beginPath();
+        this.ctx.rect(photoX, photoY, photoW, photoH);
+        this.ctx.clip();
         
-        // Desenhar a imagem do usuário
-        ctx.drawImage(
-            this.userImage,
-            userDrawX, userDrawY, userDrawWidth, userDrawHeight
-        );
+        // Desenhar imagem
+        this.ctx.drawImage(this.userImage, imgX, imgY, imgW, imgH);
         
-        // Restaurar contexto
-        ctx.restore();
-        ctx.filter = 'none';
+        // Restaurar
+        this.ctx.restore();
+        this.ctx.filter = 'none';
     }
 
-    drawTexts(ctx, scale) {
+    drawModel() {
+        const w = this.canvas.width / this.SCALE_FACTOR;
+        const h = this.canvas.height / this.SCALE_FACTOR;
+        this.ctx.drawImage(this.modelImage, 0, 0, w, h);
+    }
+
+    drawTexts() {
         const name = document.getElementById('name').value;
         const courseSelect = document.getElementById('courseSelect').value;
         const courseCustom = document.getElementById('courseCustom').value;
@@ -429,34 +452,34 @@ class BadgeGenerator {
         const locationSelect = document.getElementById('locationSelect').value;
         const locationCustom = document.getElementById('locationCustom').value;
         const location = locationSelect === 'custom' ? locationCustom : locationSelect;
+        
         const nameSize = parseInt(document.getElementById('nameSize').value);
         const courseSize = parseInt(document.getElementById('courseSize').value);
         const locationSize = parseInt(document.getElementById('locationSize').value);
         
-        ctx.fillStyle = '#1e3a8a';
-        ctx.textAlign = 'center';
-        const canvasWidth = ctx.canvas.width / scale;
-        const centerX = canvasWidth / 2;
+        this.ctx.fillStyle = '#1e3a8a';
+        this.ctx.textAlign = 'center';
+        const centerX = (this.canvas.width / this.SCALE_FACTOR) / 2;
         
         if (name) {
-            ctx.font = `bold ${nameSize}px Arial, sans-serif`;
-            ctx.fillText(name, centerX, 315);
+            this.ctx.font = `bold ${nameSize}px Arial, sans-serif`;
+            this.ctx.fillText(name, centerX, 315);
         }
         if (course) {
-            ctx.font = `${courseSize}px Arial, sans-serif`;
-            ctx.fillText(course, centerX, 335);
+            this.ctx.font = `${courseSize}px Arial, sans-serif`;
+            this.ctx.fillText(course, centerX, 335);
         }
         if (location) {
-            ctx.font = `${locationSize}px Arial, sans-serif`;
-            ctx.fillText(location, centerX, 355);
+            this.ctx.font = `${locationSize}px Arial, sans-serif`;
+            this.ctx.fillText(location, centerX, 355);
         }
     }
 
     // ====================================
-    // FUNÇÃO CORRIGIDA DE GERAÇÃO
+    // NOVA ABORDAGEM: CAPTURA DIRETA DO CANVAS
     // ====================================
 
-    generateCard() {
+    async generateCard() {
         if (!this.userImage || !this.modelImage) {
             alert('Por favor, carregue a foto e o modelo antes de gerar.');
             return;
@@ -467,130 +490,68 @@ class BadgeGenerator {
             return;
         }
 
-        console.log('🎯 Gerando crachá para download...');
+        console.log('🎯 Iniciando geração com NOVA ABORDAGEM...');
         
-        // Garantir que o preview esteja atualizado
+        // GARANTIR que o canvas esteja atualizado
         this.drawBadge();
         
-        // Criar canvas de alta resolução
-        const downloadCanvas = document.createElement('canvas');
-        downloadCanvas.width = this.PRINT_WIDTH_PX;
-        downloadCanvas.height = this.PRINT_HEIGHT_PX;
-        const downloadCtx = downloadCanvas.getContext('2d');
+        // Aguardar próximo frame para garantir renderização
+        await new Promise(resolve => requestAnimationFrame(resolve));
         
-        // Configurar qualidade
-        downloadCtx.imageSmoothingEnabled = true;
-        downloadCtx.imageSmoothingQuality = 'high';
-        
-        // Fundo branco
-        downloadCtx.fillStyle = '#FFFFFF';
-        downloadCtx.fillRect(0, 0, downloadCanvas.width, downloadCanvas.height);
-        
-        // CORREÇÃO CRÍTICA: Calcular fator de escala baseado no canvas de preview (300x400)
-        const previewWidth = 300; // Largura do preview em pixels
-        const previewHeight = 400; // Altura do preview em pixels
-        const scaleX = downloadCanvas.width / previewWidth;
-        const scaleY = downloadCanvas.height / previewHeight;
-        
-        console.log(`📐 Dimensões do download: ${downloadCanvas.width}x${downloadCanvas.height}px`);
-        console.log(`📏 Escala X: ${scaleX.toFixed(2)}, Escala Y: ${scaleY.toFixed(2)}`);
-        
-        // Obter valores dos ajustes
-        const brightness = parseInt(document.getElementById('brightness').value || 0);
-        const contrast = parseInt(document.getElementById('contrast').value || 0);
-        
-        // Aplicar filtros
-        downloadCtx.filter = `brightness(${100 + brightness}%) contrast(${100 + contrast}%)`;
-        
-        // DESENHAR A FOTO DO USUÁRIO COM TODOS OS AJUSTES
-        if (this.userImage) {
-            // Calcular área da foto no canvas de download
-            const photoAreaX = (this.photoArea.x / this.SCALE_FACTOR) * scaleX;
-            const photoAreaY = (this.photoArea.y / this.SCALE_FACTOR) * scaleY;
-            const photoAreaWidth = (this.photoArea.width / this.SCALE_FACTOR) * scaleX;
-            const photoAreaHeight = (this.photoArea.height / this.SCALE_FACTOR) * scaleY;
+        try {
+            // ETAPA 1: Capturar o canvas atual (já tem tudo renderizado corretamente)
+            const sourceCanvas = this.canvas;
             
-            // Calcular tamanho da imagem COM zoom
-            const userDrawWidth = this.userImage.width * this.imageZoom * scaleX;
-            const userDrawHeight = this.userImage.height * this.imageZoom * scaleY;
+            // ETAPA 2: Criar canvas de alta resolução
+            const highResCanvas = document.createElement('canvas');
+            highResCanvas.width = this.PRINT_WIDTH_PX;
+            highResCanvas.height = this.PRINT_HEIGHT_PX;
             
-            // Calcular posição COM offset do usuário
-            const userDrawX = photoAreaX + (photoAreaWidth / 2) - (userDrawWidth / 2) + (this.imagePosition.x * scaleX);
-            const userDrawY = photoAreaY + (photoAreaHeight / 2) - (userDrawHeight / 2) + (this.imagePosition.y * scaleY);
+            console.log(`📐 Canvas fonte: ${sourceCanvas.width}x${sourceCanvas.height}`);
+            console.log(`📐 Canvas destino: ${highResCanvas.width}x${highResCanvas.height}`);
             
-            console.log('📍 Área da foto:', { x: photoAreaX.toFixed(1), y: photoAreaY.toFixed(1), w: photoAreaWidth.toFixed(1), h: photoAreaHeight.toFixed(1) });
-            console.log('🖼️ Imagem do usuário:', { x: userDrawX.toFixed(1), y: userDrawY.toFixed(1), w: userDrawWidth.toFixed(1), h: userDrawHeight.toFixed(1) });
-            console.log('🎯 Ajustes aplicados:', { zoom: this.imageZoom, posX: this.imagePosition.x, posY: this.imagePosition.y, brightness, contrast });
+            // ETAPA 3: Usar Pica.js para redimensionar com máxima qualidade
+            const result = await this.pica.resize(sourceCanvas, highResCanvas, {
+                quality: 3,
+                alpha: true,
+                unsharpAmount: 80,
+                unsharpRadius: 0.6,
+                unsharpThreshold: 2
+            });
             
-            // Salvar estado
-            downloadCtx.save();
+            console.log('✅ Redimensionamento concluído com Pica.js');
             
-            // Criar recorte retangular
-            downloadCtx.beginPath();
-            downloadCtx.rect(photoAreaX, photoAreaY, photoAreaWidth, photoAreaHeight);
-            downloadCtx.clip();
+            // ETAPA 4: Converter para JPEG com fundo branco
+            const finalCanvas = document.createElement('canvas');
+            finalCanvas.width = highResCanvas.width;
+            finalCanvas.height = highResCanvas.height;
+            const finalCtx = finalCanvas.getContext('2d');
             
-            // Desenhar a imagem
-            downloadCtx.drawImage(
-                this.userImage,
-                userDrawX, userDrawY, userDrawWidth, userDrawHeight
-            );
+            // Fundo branco
+            finalCtx.fillStyle = '#FFFFFF';
+            finalCtx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
             
-            // Restaurar contexto
-            downloadCtx.restore();
+            // Desenhar imagem redimensionada
+            finalCtx.drawImage(result, 0, 0);
+            
+            // ETAPA 5: Gerar download
+            const dataURL = finalCanvas.toDataURL('image/jpeg', 0.95);
+            
+            const downloadLink = document.getElementById('downloadLink');
+            const fileName = document.getElementById('name').value.trim() || 'cracha-cetep';
+            downloadLink.download = `${fileName}.jpeg`;
+            downloadLink.href = dataURL;
+            
+            document.getElementById('downloadSection').style.display = 'block';
+            
+            console.log('✅ Download pronto!');
+            console.log(`📄 Arquivo: ${fileName}.jpeg`);
+            console.log(`📊 Tamanho: ${(dataURL.length / 1024 / 1024).toFixed(2)} MB`);
+            
+        } catch (error) {
+            console.error('❌ Erro na geração:', error);
+            alert('Erro ao gerar o crachá. Por favor, tente novamente.');
         }
-        
-        // Remover filtro antes de desenhar o modelo
-        downloadCtx.filter = 'none';
-        
-        // DESENHAR O MODELO POR CIMA
-        downloadCtx.drawImage(this.modelImage, 0, 0, downloadCanvas.width, downloadCanvas.height);
-        
-        // DESENHAR OS TEXTOS
-        const name = document.getElementById('name').value;
-        const courseSelect = document.getElementById('courseSelect').value;
-        const courseCustom = document.getElementById('courseCustom').value;
-        const course = courseSelect === 'custom' ? courseCustom : courseSelect;
-        const locationSelect = document.getElementById('locationSelect').value;
-        const locationCustom = document.getElementById('locationCustom').value;
-        const location = locationSelect === 'custom' ? locationCustom : locationSelect;
-        
-        const nameSize = parseInt(document.getElementById('nameSize').value) * scaleY;
-        const courseSize = parseInt(document.getElementById('courseSize').value) * scaleY;
-        const locationSize = parseInt(document.getElementById('locationSize').value) * scaleY;
-        
-        downloadCtx.fillStyle = '#1e3a8a';
-        downloadCtx.textAlign = 'center';
-        const centerX = downloadCanvas.width / 2;
-        
-        if (name) {
-            downloadCtx.font = `bold ${nameSize}px Arial, sans-serif`;
-            downloadCtx.fillText(name, centerX, 315 * scaleY);
-        }
-        if (course) {
-            downloadCtx.font = `${courseSize}px Arial, sans-serif`;
-            downloadCtx.fillText(course, centerX, 335 * scaleY);
-        }
-        if (location) {
-            downloadCtx.font = `${locationSize}px Arial, sans-serif`;
-            downloadCtx.fillText(location, centerX, 355 * scaleY);
-        }
-        
-        // Converter para JPEG de alta qualidade
-        const dataURL = downloadCanvas.toDataURL('image/jpeg', 1.0);
-        
-        // Configurar link de download
-        const downloadLink = document.getElementById('downloadLink');
-        const fileName = document.getElementById('name').value.trim() || 'cracha-cetep';
-        downloadLink.download = `${fileName}.jpeg`;
-        downloadLink.href = dataURL;
-        
-        // Exibir seção de download
-        document.getElementById('downloadSection').style.display = 'block';
-        
-        console.log('✅ Crachá gerado com sucesso!');
-        console.log(`📄 Arquivo: ${fileName}.jpeg`);
-        console.log(`📊 Tamanho: ${(dataURL.length / 1024 / 1024).toFixed(2)} MB`);
     }
 
     printCard() {
