@@ -7,20 +7,14 @@
  * Use o formato "Versão [número]: [Descrição da modificação]".
  * Mantenha a lista limitada às 4 últimas alterações para clareza e concisão.
  *
- * Versão 5.5: Correção completa do sistema de download de imagem.
- * - Reescrita completa das funções generateCard() e createDownloadLink() para garantir que a foto do usuário apareça.
- * - Implementado sistema de debug detalhado para diagnosticar problemas de renderização.
- * - Adicionada solução de emergência usando cópia direta do canvas principal.
- * - Melhorada a validação e tratamento de erros em todas as etapas do processo.
- * Versão 5.4: Corrigido o bug do botão "Gerar Crachá".
- * - Agora a função generateCard() garante que o crachá seja desenhado completamente no canvas principal antes de gerar o download.
- * - A foto do usuário agora aparece corretamente na imagem gerada, mantendo consistência com o PDF.
- * - Adicionada validação adicional para garantir que todos os elementos estejam presentes antes da geração.
- * Versão 5.3: Corrigido o bug de download da imagem.
- * - A lógica de escala na função de download foi revisada para garantir que a foto do usuário e o modelo sejam desenhados corretamente no canvas de alta resolução.
- * - A ordem de desenho foi ajustada para que a foto do usuário apareça por trás do modelo.
- * Versão 5.2: Corrigido nome do arquivo de download.
- * - O nome do arquivo agora é gerado dinamicamente com base no nome do aluno inserido no campo de texto.
+/**
+ * CHANGELOG
+ *
+ * Versão 6.0: Correção definitiva do bug de download.
+ * - Simplificada a lógica de geração do crachá para download
+ * - Agora usa o mesmo método de desenho tanto para preview quanto para download
+ * - Removida complexidade desnecessária das funções de exportação
+ * - Garantido que a foto sempre apareça no arquivo baixado
  */
 class BadgeGenerator {
     constructor() {
@@ -39,7 +33,6 @@ class BadgeGenerator {
         this.modelImage = null;
         this.hasTransparency = true;
         
-        // Coordenadas e dimensões da área de transparência para a foto do usuário.
         this.photoArea = {
             x: 300, 
             y: 390, 
@@ -274,17 +267,14 @@ class BadgeGenerator {
     async processUserImage() {
         const squareSize = Math.min(this.photoArea.width, this.photoArea.height);
         
-        // Calcula as dimensões mantendo a proporção da imagem original
         let targetWidth, targetHeight;
         const aspectRatio = this.userImage.width / this.userImage.height;
         
         if (aspectRatio >= 1) {
-            // Imagem mais larga que alta
-            targetWidth = squareSize * 0.9; // 90% do lado para margem de segurança
+            targetWidth = squareSize * 0.9;
             targetHeight = targetWidth / aspectRatio;
         } else {
-            // Imagem mais alta que larga
-            targetHeight = squareSize * 0.9; // 90% do lado para margem de segurança
+            targetHeight = squareSize * 0.9;
             targetWidth = targetHeight * aspectRatio;
         }
         
@@ -306,16 +296,11 @@ class BadgeGenerator {
             processedImage.src = result.toDataURL('image/png');
         } catch (error) {
             console.error('[ERRO-pica] Falha ao redimensionar a imagem:', error);
-            // Fallback para redimensionamento manual se a biblioteca falhar
             this.userImage.width = targetWidth;
             this.userImage.height = targetHeight;
             this.resetImageControls();
             this.drawBadge();
         }
-    }
-
-    analyzeTransparency() {
-        console.log('A análise de transparência foi substituída por dados fixos.');
     }
 
     resetImageControls() {
@@ -360,7 +345,6 @@ class BadgeGenerator {
         this.imagePosition.x = mouseX - this.dragStart.x;
         this.imagePosition.y = mouseY - this.dragStart.y;
         
-        // Limita o movimento para manter a imagem dentro de limites razoáveis
         const maxOffsetX = this.photoArea.width / 2;
         const maxOffsetY = this.photoArea.height / 2;
         this.imagePosition.x = Math.max(-maxOffsetX, Math.min(maxOffsetX, this.imagePosition.x));
@@ -394,12 +378,14 @@ class BadgeGenerator {
         this.drawTexts(this.ctx, this.SCALE_FACTOR);
     }
 
+    // Função centralizada para desenhar o modelo
     drawModel(ctx, scale) {
-        const canvasWidth = this.canvas.width / scale;
-        const canvasHeight = this.canvas.height / scale;
+        const canvasWidth = ctx.canvas.width / scale;
+        const canvasHeight = ctx.canvas.height / scale;
         ctx.drawImage(this.modelImage, 0, 0, canvasWidth, canvasHeight);
     }
 
+    // Função centralizada para desenhar a foto do usuário
     drawUserImageBehind(ctx, scale) {
         const brightness = parseInt(document.getElementById('brightness').value);
         const contrast = parseInt(document.getElementById('contrast').value);
@@ -418,19 +404,17 @@ class BadgeGenerator {
         
         ctx.save();
         ctx.beginPath();
-        
         ctx.rect(photoAreaX, photoAreaY, photoAreaWidth, photoAreaHeight);
         ctx.clip();
-        
         ctx.drawImage(
             this.userImage,
             userDrawX, userDrawY, userDrawWidth, userDrawHeight
         );
-        
         ctx.restore();
         ctx.filter = 'none';
     }
 
+    // Função centralizada para desenhar os textos
     drawTexts(ctx, scale) {
         const name = document.getElementById('name').value;
         const courseSelect = document.getElementById('courseSelect').value;
@@ -442,10 +426,12 @@ class BadgeGenerator {
         const nameSize = parseInt(document.getElementById('nameSize').value);
         const courseSize = parseInt(document.getElementById('courseSize').value);
         const locationSize = parseInt(document.getElementById('locationSize').value);
+        
         ctx.fillStyle = '#1e3a8a';
         ctx.textAlign = 'center';
-        const canvasWidth = this.canvas.width / scale;
+        const canvasWidth = ctx.canvas.width / scale;
         const centerX = canvasWidth / 2;
+        
         if (name) {
             ctx.font = `bold ${nameSize}px Arial, sans-serif`;
             ctx.fillText(name, centerX, 315);
@@ -461,11 +447,10 @@ class BadgeGenerator {
     }
 
     // ====================================
-    // FUNÇÕES CORRIGIDAS PARA GERAÇÃO
+    // FUNÇÃO CORRIGIDA DE GERAÇÃO
     // ====================================
 
     generateCard() {
-        // Validação completa
         if (!this.userImage || !this.modelImage) {
             alert('Por favor, carregue a foto e o modelo antes de gerar.');
             return;
@@ -476,34 +461,10 @@ class BadgeGenerator {
             return;
         }
 
-        console.log('🎯 Iniciando geração do crachá...');
+        console.log('🎯 Gerando crachá para download...');
         
-        // Debug status das imagens
-        this.debugImageStatus();
-        
-        // Garantir que o crachá esteja desenhado no canvas principal
+        // Garantir que o preview esteja atualizado
         this.drawBadge();
-        
-        // Aguardar o desenho ser concluído
-        setTimeout(() => {
-            console.log('📋 Exibindo seção de download...');
-            document.getElementById('downloadSection').style.display = 'block';
-            
-            // Tentar método corrigido primeiro
-            try {
-                this.createDownloadLinkFixed();
-                console.log('✅ Download criado com método corrigido!');
-            } catch (error) {
-                console.error('❌ Falha no método corrigido, tentando emergência:', error);
-                this.createEmergencyDownload();
-            }
-            
-        }, 300); // Aumentado o delay para garantir o desenho
-    }
-
-    // Método principal corrigido
-    createDownloadLinkFixed() {
-        console.log('🔧 Criando download com método corrigido...');
         
         // Criar canvas de alta resolução
         const downloadCanvas = document.createElement('canvas');
@@ -511,265 +472,48 @@ class BadgeGenerator {
         downloadCanvas.height = this.PRINT_HEIGHT_PX;
         const downloadCtx = downloadCanvas.getContext('2d');
         
-        // Configurar qualidade máxima
+        // Configurar qualidade
         downloadCtx.imageSmoothingEnabled = true;
         downloadCtx.imageSmoothingQuality = 'high';
         
-        console.log(`📐 Canvas de download: ${downloadCanvas.width}x${downloadCanvas.height}px`);
-        
-        // Fundo branco sólido
+        // Fundo branco
         downloadCtx.fillStyle = '#FFFFFF';
         downloadCtx.fillRect(0, 0, downloadCanvas.width, downloadCanvas.height);
         
-        // Calcular fatores de escala
-        const scaleX = downloadCanvas.width / (this.canvas.width / this.SCALE_FACTOR);
-        const scaleY = downloadCanvas.height / (this.canvas.height / this.SCALE_FACTOR);
+        // Calcular fator de escala para alta resolução
+        const scaleToHighRes = downloadCanvas.width / (this.canvas.width / this.SCALE_FACTOR);
         
-        console.log(`📏 Fatores de escala: X=${scaleX.toFixed(2)}, Y=${scaleY.toFixed(2)}`);
+        console.log(`📐 Dimensões do download: ${downloadCanvas.width}x${downloadCanvas.height}px`);
+        console.log(`📏 Fator de escala: ${scaleToHighRes.toFixed(2)}`);
         
-        // ETAPA 1: Desenhar a foto do usuário PRIMEIRO
-        this.drawUserPhotoForDownload(downloadCtx, scaleX, scaleY);
-        
-        // ETAPA 2: Desenhar o modelo por cima
-        this.drawModelForDownload(downloadCtx);
-        
-        // ETAPA 3: Desenhar os textos
-        this.drawTextsForDownload(downloadCtx, scaleY);
-        
-        // ETAPA 4: Criar o link de download
-        this.finalizeDownloadLink(downloadCanvas);
-    }
-
-    // Função específica para desenhar a foto no download
-    drawUserPhotoForDownload(ctx, scaleX, scaleY) {
-        if (!this.userImage || !this.userImage.complete) {
-            console.warn('⚠️ Foto do usuário não disponível');
-            return;
+        // IMPORTANTE: Usar as mesmas funções de desenho, mas com contexto diferente
+        // Desenhar foto primeiro (atrás)
+        if (this.userImage) {
+            this.drawUserImageBehind(downloadCtx, scaleToHighRes);
         }
         
-        console.log('🖼️ Desenhando foto do usuário...');
+        // Desenhar modelo por cima
+        this.drawModel(downloadCtx, scaleToHighRes);
         
-        // Obter configurações atuais
-        const brightness = parseInt(document.getElementById('brightness').value || 0);
-        const contrast = parseInt(document.getElementById('contrast').value || 0);
+        // Desenhar textos
+        this.drawTexts(downloadCtx, scaleToHighRes);
         
-        // Aplicar filtros
-        ctx.filter = `brightness(${100 + brightness}%) contrast(${100 + contrast}%)`;
-        
-        // Calcular área da foto escalada
-        const photoArea = {
-            x: this.photoArea.x * scaleX,
-            y: this.photoArea.y * scaleY,
-            width: this.photoArea.width * scaleX,
-            height: this.photoArea.height * scaleY
-        };
-        
-        // Calcular dimensões da imagem do usuário
-        const imageWidth = this.userImage.width * this.imageZoom * scaleX;
-        const imageHeight = this.userImage.height * this.imageZoom * scaleY;
-        
-        // Calcular posição central + offset do usuário
-        const imageX = photoArea.x + (photoArea.width / 2) - (imageWidth / 2) + (this.imagePosition.x * scaleX);
-        const imageY = photoArea.y + (photoArea.height / 2) - (imageHeight / 2) + (this.imagePosition.y * scaleY);
-        
-        console.log(`📍 Posição da foto: x=${imageX.toFixed(1)}, y=${imageY.toFixed(1)}, w=${imageWidth.toFixed(1)}, h=${imageHeight.toFixed(1)}`);
-        console.log(`🎯 Área da foto: x=${photoArea.x.toFixed(1)}, y=${photoArea.y.toFixed(1)}, w=${photoArea.width.toFixed(1)}, h=${photoArea.height.toFixed(1)}`);
-        
-        // Salvar contexto e aplicar clipping
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(photoArea.x, photoArea.y, photoArea.width, photoArea.height);
-        ctx.clip();
-        
-        // Desenhar a imagem
-        ctx.drawImage(
-            this.userImage,
-            imageX, imageY, imageWidth, imageHeight
-        );
-        
-        // Restaurar contexto
-        ctx.restore();
-        ctx.filter = 'none';
-        
-        console.log('✅ Foto do usuário desenhada com sucesso');
-    }
-
-    // Função específica para desenhar o modelo no download
-    drawModelForDownload(ctx) {
-        if (!this.modelImage || !this.modelImage.complete) {
-            console.warn('⚠️ Modelo não disponível');
-            return;
-        }
-        
-        console.log('🎨 Desenhando modelo...');
-        
-        // Desenhar modelo em tamanho completo
-        ctx.drawImage(
-            this.modelImage, 
-            0, 0, 
-            ctx.canvas.width, 
-            ctx.canvas.height
-        );
-        
-        console.log('✅ Modelo desenhado com sucesso');
-    }
-
-    // Função específica para desenhar textos no download
-    drawTextsForDownload(ctx, scaleY) {
-        console.log('📝 Desenhando textos...');
-        
-        // Obter valores dos campos
-        const name = document.getElementById('name').value || '';
-        const courseSelect = document.getElementById('courseSelect').value;
-        const courseCustom = document.getElementById('courseCustom').value || '';
-        const course = courseSelect === 'custom' ? courseCustom : courseSelect;
-        const locationSelect = document.getElementById('locationSelect').value;
-        const locationCustom = document.getElementById('locationCustom').value || '';
-        const location = locationSelect === 'custom' ? locationCustom : locationSelect;
-        
-        // Obter tamanhos de fonte
-        const nameSize = parseInt(document.getElementById('nameSize').value || 16) * scaleY;
-        const courseSize = parseInt(document.getElementById('courseSize').value || 14) * scaleY;
-        const locationSize = parseInt(document.getElementById('locationSize').value || 12) * scaleY;
-        
-        // Configurar estilo do texto
-        ctx.fillStyle = '#1e3a8a'; // Azul escuro
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        
-        const centerX = ctx.canvas.width / 2;
-        
-        // Desenhar nome
-        if (name.trim()) {
-            ctx.font = `bold ${nameSize}px Arial, sans-serif`;
-            ctx.fillText(name, centerX, 315 * scaleY);
-            console.log(`📝 Nome: "${name}" (tamanho: ${nameSize.toFixed(1)}px)`);
-        }
-        
-        // Desenhar curso
-        if (course && course.trim()) {
-            ctx.font = `${courseSize}px Arial, sans-serif`;
-            ctx.fillText(course, centerX, 335 * scaleY);
-            console.log(`📝 Curso: "${course}" (tamanho: ${courseSize.toFixed(1)}px)`);
-        }
-        
-        // Desenhar local
-        if (location && location.trim()) {
-            ctx.font = `${locationSize}px Arial, sans-serif`;
-            ctx.fillText(location, centerX, 355 * scaleY);
-            console.log(`📝 Local: "${location}" (tamanho: ${locationSize.toFixed(1)}px)`);
-        }
-        
-        console.log('✅ Textos desenhados com sucesso');
-    }
-
-    // Função para finalizar o download
-    finalizeDownloadLink(canvas) {
-        console.log('💾 Finalizando link de download...');
-        
-        // Converter para JPEG com qualidade máxima
-        const dataURL = canvas.toDataURL('image/jpeg', 1.0);
+        // Converter para JPEG de alta qualidade
+        const dataURL = downloadCanvas.toDataURL('image/jpeg', 1.0);
         
         // Configurar link de download
         const downloadLink = document.getElementById('downloadLink');
-        if (!downloadLink) {
-            console.error('❌ Elemento downloadLink não encontrado');
-            return;
-        }
-        
         const fileName = document.getElementById('name').value.trim() || 'cracha-cetep';
         downloadLink.download = `${fileName}.jpeg`;
         downloadLink.href = dataURL;
         
-        console.log(`✅ Link de download configurado: ${fileName}.jpeg`);
-        console.log(`📊 Tamanho do arquivo: ${(dataURL.length / 1024 / 1024).toFixed(2)} MB`);
+        // Exibir seção de download
+        document.getElementById('downloadSection').style.display = 'block';
+        
+        console.log('✅ Crachá gerado com sucesso!');
+        console.log(`📄 Arquivo: ${fileName}.jpeg`);
+        console.log(`📊 Tamanho: ${(dataURL.length / 1024 / 1024).toFixed(2)} MB`);
     }
-
-    // Solução de emergência - usar canvas principal diretamente
-    createEmergencyDownload() {
-        console.log('🚨 Usando solução de emergência...');
-        
-        // Usar o canvas principal como está
-        const mainCanvasData = this.canvas.toDataURL('image/png', 1.0);
-        
-        // Criar nova imagem para redimensionar
-        const img = new Image();
-        img.onload = () => {
-            // Criar canvas de saída
-            const outputCanvas = document.createElement('canvas');
-            outputCanvas.width = this.PRINT_WIDTH_PX;
-            outputCanvas.height = this.PRINT_HEIGHT_PX;
-            const outputCtx = outputCanvas.getContext('2d');
-            
-            // Fundo branco
-            outputCtx.fillStyle = '#FFFFFF';
-            outputCtx.fillRect(0, 0, outputCanvas.width, outputCanvas.height);
-            
-            // Desenhar imagem redimensionada
-            outputCtx.drawImage(
-                img, 
-                0, 0, img.width, img.height,
-                0, 0, outputCanvas.width, outputCanvas.height
-            );
-            
-            // Criar link
-            const dataURL = outputCanvas.toDataURL('image/jpeg', 1.0);
-            const downloadLink = document.getElementById('downloadLink');
-            const fileName = document.getElementById('name').value.trim() || 'cracha-cetep';
-            downloadLink.download = `${fileName}.jpeg`;
-            downloadLink.href = dataURL;
-            
-            console.log('✅ Download de emergência criado!');
-        };
-        
-        img.src = mainCanvasData;
-    }
-
-    // Função de debug para diagnosticar problemas
-    debugImageStatus() {
-        console.log('=== 🔍 DEBUG STATUS ===');
-        console.log('Model loaded:', !!this.modelImage && this.modelImage.complete);
-        console.log('User image loaded:', !!this.userImage && this.userImage.complete);
-        
-        if (this.userImage) {
-            console.log('User image dimensions:', this.userImage.width, 'x', this.userImage.height);
-            console.log('User image position:', this.imagePosition);
-            console.log('User image zoom:', this.imageZoom);
-            console.log('User image src length:', this.userImage.src.length);
-        }
-        
-        if (this.modelImage) {
-            console.log('Model image dimensions:', this.modelImage.width, 'x', this.modelImage.height);
-            console.log('Model image src length:', this.modelImage.src.length);
-        }
-        
-        console.log('Photo area:', this.photoArea);
-        console.log('Canvas dimensions:', this.canvas.width, 'x', this.canvas.height);
-        console.log('Scale factor:', this.SCALE_FACTOR);
-        
-        // Verificar se há conteúdo no canvas
-        try {
-            const imageData = this.ctx.getImageData(0, 0, 50, 50);
-            const hasContent = imageData.data.some(pixel => pixel !== 255 && pixel !== 0);
-            console.log('Canvas has visual content:', hasContent);
-        } catch (error) {
-            console.error('Erro ao verificar conteúdo do canvas:', error);
-        }
-        
-        // Verificar controles
-        const brightness = document.getElementById('brightness').value;
-        const contrast = document.getElementById('contrast').value;
-        const posX = document.getElementById('positionX').value;
-        const posY = document.getElementById('positionY').value;
-        const zoom = document.getElementById('zoom').value;
-        
-        console.log('Controles atuais:', { brightness, contrast, posX, posY, zoom });
-        console.log('========================');
-    }
-
-    // ====================================
-    // FUNÇÕES ORIGINAIS MANTIDAS
-    // ====================================
 
     printCard() {
         if (!this.userImage || !this.modelImage) {
@@ -778,102 +522,6 @@ class BadgeGenerator {
         }
         this.drawBadge();
         window.print();
-    }
-
-    // Função original de download mantida como backup
-    createDownloadLink() {
-        const printCanvas = document.createElement('canvas');
-        printCanvas.width = this.PRINT_WIDTH_PX;
-        printCanvas.height = this.PRINT_HEIGHT_PX;
-        const printCtx = printCanvas.getContext('2d');
-        printCtx.imageSmoothingEnabled = true;
-        printCtx.imageSmoothingQuality = 'high';
-
-        // Passo 1: Adicionar um fundo branco sólido para o JPEG
-        printCtx.fillStyle = '#FFFFFF';
-        printCtx.fillRect(0, 0, printCanvas.width, printCanvas.height);
-
-        const scaleX = printCanvas.width / (this.canvas.width / this.SCALE_FACTOR);
-        const scaleY = printCanvas.height / (this.canvas.height / this.SCALE_FACTOR);
-
-        if (this.userImage) {
-            this.drawUserImageOnPrintCanvas(printCtx, scaleX, scaleY);
-        }
-        
-        printCtx.drawImage(this.modelImage, 0, 0, printCanvas.width, printCanvas.height);
-
-        this.drawTextsOnPrintCanvas(printCtx, scaleY);
-        
-        printCtx.strokeStyle = 'black';
-        printCtx.lineWidth = 1;
-        printCtx.strokeRect(0, 0, printCanvas.width, printCanvas.height);
-
-        // Passo 2: Aumentar a qualidade do JPEG para 1.0
-        const dataURL = printCanvas.toDataURL('image/jpeg', 1.0);
-        const downloadLink = document.getElementById('downloadLink');
-        const fileName = document.getElementById('name').value.trim();
-        downloadLink.download = `${fileName || 'cracha-cetep'}.jpeg`;
-        downloadLink.href = dataURL;
-    }
-
-    drawUserImageOnPrintCanvas(printCtx, scaleX, scaleY) {
-        const brightness = parseInt(document.getElementById('brightness').value);
-        const contrast = parseInt(document.getElementById('contrast').value);
-        printCtx.filter = `brightness(${100 + brightness}%) contrast(${100 + contrast}%)`;
-        
-        const photoAreaX = this.photoArea.x * scaleX;
-        const photoAreaY = this.photoArea.y * scaleY;
-        const photoAreaWidth = this.photoArea.width * scaleX;
-        const photoAreaHeight = this.photoArea.height * scaleY;
-        
-        const userDrawWidth = this.userImage.width * this.imageZoom * scaleX;
-        const userDrawHeight = this.userImage.height * this.imageZoom * scaleY;
-        
-        const userDrawX = photoAreaX + (photoAreaWidth / 2) - (userDrawWidth / 2) + (this.imagePosition.x * scaleX);
-        const userDrawY = photoAreaY + (photoAreaHeight / 2) - (userDrawHeight / 2) + (this.imagePosition.y * scaleY);
-        
-        printCtx.save();
-        printCtx.beginPath();
-        printCtx.rect(photoAreaX, photoAreaY, photoAreaWidth, photoAreaHeight);
-        printCtx.clip();
-        printCtx.drawImage(
-            this.userImage,
-            userDrawX, userDrawY, userDrawWidth, userDrawHeight
-        );
-        printCtx.restore();
-        printCtx.filter = 'none';
-    }
-
-    drawTextsOnPrintCanvas(printCtx, scaleY) {
-        const name = document.getElementById('name').value;
-        const courseSelect = document.getElementById('courseSelect').value;
-        const courseCustom = document.getElementById('courseCustom').value;
-        const course = courseSelect === 'custom' ? courseCustom : courseSelect;
-        const locationSelect = document.getElementById('locationSelect').value;
-        const locationCustom = document.getElementById('locationCustom').value;
-        const location = locationSelect === 'custom' ? locationCustom : locationSelect;
-
-        const nameSize = parseInt(document.getElementById('nameSize').value) * scaleY;
-        const courseSize = parseInt(document.getElementById('courseSize').value) * scaleY;
-        const locationSize = parseInt(document.getElementById('locationSize').value) * scaleY;
-        
-        printCtx.fillStyle = '#1e3a8a';
-        printCtx.textAlign = 'center';
-        
-        const centerX = this.PRINT_WIDTH_PX / 2;
-
-        if (name) {
-            printCtx.font = `bold ${nameSize}px Arial, sans-serif`;
-            printCtx.fillText(name, centerX, 315 * scaleY);
-        }
-        if (course) {
-            printCtx.font = `${courseSize}px Arial, sans-serif`;
-            printCtx.fillText(course, centerX, 335 * scaleY);
-        }
-        if (location) {
-            printCtx.font = `${locationSize}px Arial, sans-serif`;
-            printCtx.fillText(location, centerX, 355 * scaleY);
-        }
     }
 }
 
