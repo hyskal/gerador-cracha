@@ -15,7 +15,7 @@
     <div class="container">
         <header class="header">
             <h1>Gerador de Crachá CETEP</h1>
-            <p>Crie seus crachás personalizados com qualidade profissional</p>
+            <p>Crie seu crachá personalizado com qualidade profissional</p>
         </header>
 
         <section class="upload-panel" aria-label="Upload de arquivos">
@@ -61,19 +61,6 @@
         </section>
 
         <section class="canvas-container" aria-label="Pré-visualização do crachá">
-            <div class="badge-navigation">
-                <button type="button" id="prevBadge" class="nav-btn" aria-label="Crachá anterior">
-                    ←
-                </button>
-                <div class="badge-counter-container">
-                    <span class="badge-label">Crachá</span>
-                    <span id="badgeCounter" class="badge-counter">1 / 8</span>
-                </div>
-                <button type="button" id="nextBadge" class="nav-btn" aria-label="Próximo crachá">
-                    →
-                </button>
-            </div>
-            
             <canvas id="canvas" 
                     width="300" 
                     height="400"
@@ -240,17 +227,12 @@
             <button id="generateCard" 
                     class="generate-btn"
                     aria-describedby="generate-help">
-                Gerar Crachá Atual
+                Gerar Crachá
             </button>
             <button id="printCard" 
                     class="print-btn"
                     aria-describedby="print-help">
-                🖨️ Imprimir Atual
-            </button>
-            <button id="printAllBadges" 
-                    class="print-all-btn"
-                    aria-describedby="print-all-help">
-                📄 Imprimir Todos (8 Crachás)
+                🖨️ Imprimir
             </button>
             <div id="downloadSection" 
                  class="download-section" 
@@ -262,21 +244,18 @@
                    class="download-link" 
                    download="cracha-cetep.png"
                    aria-describedby="download-help">
-                    ⬇️ Baixar Crachá Atual
+                    ⬇️ Baixar Crachá
                 </a>
             </div>
             
             <div id="generate-help" class="help-text" style="display: none;">
-                Clique para finalizar o crachá atual e disponibilizar o download
+                Clique para finalizar o crachá e disponibilizar o download
             </div>
             <div id="print-help" class="help-text" style="display: none;">
-                Imprime apenas o crachá atual nas dimensões padrão 54x85mm
-            </div>
-            <div id="print-all-help" class="help-text" style="display: none;">
-                Imprime todos os 8 crachás em uma única folha A4 com espaçamento para corte
+                Imprime o crachá nas dimensões padrão 54x85mm
             </div>
             <div id="download-help" class="help-text" style="display: none;">
-                Baixa o crachá atual em alta qualidade PNG 300 DPI
+                Baixa o crachá em alta qualidade PNG 300 DPI
             </div>
         </section>
     </div>
