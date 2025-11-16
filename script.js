@@ -875,4 +875,8 @@ class BadgeGenerator {
             printCtx.fillText(location, centerX, 355 * scaleY);
         }
     }
- 
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    window.badgeGenerator = new BadgeGenerator();
+});
