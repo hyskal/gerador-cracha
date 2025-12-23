@@ -460,12 +460,12 @@ class BadgeGenerator {
         }
     }
 
-    // ====================================
-    // FUNÇÕES CORRIGIDAS PARA GERAÇÃO
+   // ====================================
+    // FUNÇÃO CORRIGIDA: GERAÇÃO SIMPLIFICADA
     // ====================================
 
     generateCard() {
-        // Validação completa
+        // 1. Validação
         if (!this.userImage || !this.modelImage) {
             alert('Por favor, carregue a foto e o modelo antes de gerar.');
             return;
@@ -476,254 +476,55 @@ class BadgeGenerator {
             return;
         }
 
-        console.log('🎯 Iniciando geração do crachá...');
-        
-        // Debug status das imagens
-        this.debugImageStatus();
-        
-        // Garantir que o crachá esteja desenhado no canvas principal
+        console.log('🎯 Iniciando geração do crachá (Método Direto)...');
+
+        // 2. Forçar um redesenho limpo no canvas principal para garantir que tudo esteja atualizado
         this.drawBadge();
-        
-        // Aguardar o desenho ser concluído
+
+        // 3. Usar setTimeout para garantir que o navegador renderizou o último quadro
         setTimeout(() => {
-            console.log('📋 Exibindo seção de download...');
-            document.getElementById('downloadSection').style.display = 'block';
-            
-            // Tentar método corrigido primeiro
             try {
-                this.createDownloadLinkFixed();
-                console.log('✅ Download criado com método corrigido!');
+                // 4. Capturar a imagem diretamente do canvas principal (que já está em Alta Resolução 3x)
+                // Isso garante que o que você vê na tela é EXATAMENTE o que será baixado.
+                const dataURL = this.canvas.toDataURL('image/png', 1.0);
+
+                // 5. Configurar o link de download
+                const downloadLink = document.getElementById('downloadLink');
+                const downloadSection = document.getElementById('downloadSection');
+                const nameInput = document.getElementById('name');
+                
+                // Sanitizar o nome do arquivo
+                let fileName = nameInput.value.trim();
+                fileName = fileName.replace(/[^a-z0-9]/gi, '_').toLowerCase(); // Remove caracteres especiais
+                if (!fileName) fileName = 'cracha-cetep';
+
+                downloadLink.download = `${fileName}.png`;
+                downloadLink.href = dataURL;
+
+                // 6. Mostrar a seção de download e feedback visual
+                downloadSection.style.display = 'block';
+                
+                // Feedback visual para o usuário
+                const generateBtn = document.getElementById('generateCard');
+                const originalText = generateBtn.innerText;
+                generateBtn.innerText = "✅ Gerado com Sucesso!";
+                generateBtn.style.background = "linear-gradient(135deg, #10b981, #059669)";
+                
+                setTimeout(() => {
+                    generateBtn.innerText = originalText;
+                    generateBtn.style.background = ""; // Retorna ao CSS original
+                }, 3000);
+
+                console.log('✅ Link de download gerado com sucesso baseada no preview.');
+
             } catch (error) {
-                console.error('❌ Falha no método corrigido, tentando emergência:', error);
-                this.createEmergencyDownload();
+                console.error('❌ Erro ao gerar link de download:', error);
+                alert('Ocorreu um erro ao preparar o download. Tente novamente.');
             }
-            
-        }, 300); // Aumentado o delay para garantir o desenho
+        }, 100);
     }
 
-    // Método principal corrigido
-    createDownloadLinkFixed() {
-        console.log('🔧 Criando download com método corrigido...');
-        
-        // Criar canvas de alta resolução
-        const downloadCanvas = document.createElement('canvas');
-        downloadCanvas.width = this.PRINT_WIDTH_PX;
-        downloadCanvas.height = this.PRINT_HEIGHT_PX;
-        const downloadCtx = downloadCanvas.getContext('2d');
-        
-        // Configurar qualidade máxima
-        downloadCtx.imageSmoothingEnabled = true;
-        downloadCtx.imageSmoothingQuality = 'high';
-        
-        console.log(`📐 Canvas de download: ${downloadCanvas.width}x${downloadCanvas.height}px`);
-        
-        // Fundo branco sólido
-        downloadCtx.fillStyle = '#FFFFFF';
-        downloadCtx.fillRect(0, 0, downloadCanvas.width, downloadCanvas.height);
-        
-        // Calcular fatores de escala
-        const scaleX = downloadCanvas.width / (this.canvas.width / this.SCALE_FACTOR);
-        const scaleY = downloadCanvas.height / (this.canvas.height / this.SCALE_FACTOR);
-        
-        console.log(`📏 Fatores de escala: X=${scaleX.toFixed(2)}, Y=${scaleY.toFixed(2)}`);
-        
-        // ETAPA 1: Desenhar a foto do usuário PRIMEIRO
-        this.drawUserPhotoForDownload(downloadCtx, scaleX, scaleY);
-        
-        // ETAPA 2: Desenhar o modelo por cima
-        this.drawModelForDownload(downloadCtx);
-        
-        // ETAPA 3: Desenhar os textos
-        this.drawTextsForDownload(downloadCtx, scaleY);
-        
-        // ETAPA 4: Criar o link de download
-        this.finalizeDownloadLink(downloadCanvas);
-    }
 
-    // Função específica para desenhar a foto no download
-    drawUserPhotoForDownload(ctx, scaleX, scaleY) {
-        if (!this.userImage || !this.userImage.complete) {
-            console.warn('⚠️ Foto do usuário não disponível');
-            return;
-        }
-        
-        console.log('🖼️ Desenhando foto do usuário...');
-        
-        // Obter configurações atuais
-        const brightness = parseInt(document.getElementById('brightness').value || 0);
-        const contrast = parseInt(document.getElementById('contrast').value || 0);
-        
-        // Aplicar filtros
-        ctx.filter = `brightness(${100 + brightness}%) contrast(${100 + contrast}%)`;
-        
-        // Calcular área da foto escalada
-        const photoArea = {
-            x: this.photoArea.x * scaleX,
-            y: this.photoArea.y * scaleY,
-            width: this.photoArea.width * scaleX,
-            height: this.photoArea.height * scaleY
-        };
-        
-        // Calcular dimensões da imagem do usuário
-        const imageWidth = this.userImage.width * this.imageZoom * scaleX;
-        const imageHeight = this.userImage.height * this.imageZoom * scaleY;
-        
-        // Calcular posição central + offset do usuário
-        const imageX = photoArea.x + (photoArea.width / 2) - (imageWidth / 2) + (this.imagePosition.x * scaleX);
-        const imageY = photoArea.y + (photoArea.height / 2) - (imageHeight / 2) + (this.imagePosition.y * scaleY);
-        
-        console.log(`📍 Posição da foto: x=${imageX.toFixed(1)}, y=${imageY.toFixed(1)}, w=${imageWidth.toFixed(1)}, h=${imageHeight.toFixed(1)}`);
-        console.log(`🎯 Área da foto: x=${photoArea.x.toFixed(1)}, y=${photoArea.y.toFixed(1)}, w=${photoArea.width.toFixed(1)}, h=${photoArea.height.toFixed(1)}`);
-        
-        // Salvar contexto e aplicar clipping
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(photoArea.x, photoArea.y, photoArea.width, photoArea.height);
-        ctx.clip();
-        
-        // Desenhar a imagem
-        ctx.drawImage(
-            this.userImage,
-            imageX, imageY, imageWidth, imageHeight
-        );
-        
-        // Restaurar contexto
-        ctx.restore();
-        ctx.filter = 'none';
-        
-        console.log('✅ Foto do usuário desenhada com sucesso');
-    }
-
-    // Função específica para desenhar o modelo no download
-    drawModelForDownload(ctx) {
-        if (!this.modelImage || !this.modelImage.complete) {
-            console.warn('⚠️ Modelo não disponível');
-            return;
-        }
-        
-        console.log('🎨 Desenhando modelo...');
-        
-        // Desenhar modelo em tamanho completo
-        ctx.drawImage(
-            this.modelImage, 
-            0, 0, 
-            ctx.canvas.width, 
-            ctx.canvas.height
-        );
-        
-        console.log('✅ Modelo desenhado com sucesso');
-    }
-
-    // Função específica para desenhar textos no download
-    drawTextsForDownload(ctx, scaleY) {
-        console.log('📝 Desenhando textos...');
-        
-        // Obter valores dos campos
-        const name = document.getElementById('name').value || '';
-        const courseSelect = document.getElementById('courseSelect').value;
-        const courseCustom = document.getElementById('courseCustom').value || '';
-        const course = courseSelect === 'custom' ? courseCustom : courseSelect;
-        const locationSelect = document.getElementById('locationSelect').value;
-        const locationCustom = document.getElementById('locationCustom').value || '';
-        const location = locationSelect === 'custom' ? locationCustom : locationSelect;
-        
-        // Obter tamanhos de fonte
-        const nameSize = parseInt(document.getElementById('nameSize').value || 16) * scaleY;
-        const courseSize = parseInt(document.getElementById('courseSize').value || 14) * scaleY;
-        const locationSize = parseInt(document.getElementById('locationSize').value || 12) * scaleY;
-        
-        // Configurar estilo do texto
-        ctx.fillStyle = '#1e3a8a'; // Azul escuro
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        
-        const centerX = ctx.canvas.width / 2;
-        
-        // Desenhar nome
-        if (name.trim()) {
-            ctx.font = `bold ${nameSize}px Arial, sans-serif`;
-            ctx.fillText(name, centerX, 315 * scaleY);
-            console.log(`📝 Nome: "${name}" (tamanho: ${nameSize.toFixed(1)}px)`);
-        }
-        
-        // Desenhar curso
-        if (course && course.trim()) {
-            ctx.font = `${courseSize}px Arial, sans-serif`;
-            ctx.fillText(course, centerX, 335 * scaleY);
-            console.log(`📝 Curso: "${course}" (tamanho: ${courseSize.toFixed(1)}px)`);
-        }
-        
-        // Desenhar local
-        if (location && location.trim()) {
-            ctx.font = `${locationSize}px Arial, sans-serif`;
-            ctx.fillText(location, centerX, 355 * scaleY);
-            console.log(`📝 Local: "${location}" (tamanho: ${locationSize.toFixed(1)}px)`);
-        }
-        
-        console.log('✅ Textos desenhados com sucesso');
-    }
-
-    // Função para finalizar o download
-    finalizeDownloadLink(canvas) {
-        console.log('💾 Finalizando link de download...');
-        
-        // Converter para JPEG com qualidade máxima
-        const dataURL = canvas.toDataURL('image/jpeg', 1.0);
-        
-        // Configurar link de download
-        const downloadLink = document.getElementById('downloadLink');
-        if (!downloadLink) {
-            console.error('❌ Elemento downloadLink não encontrado');
-            return;
-        }
-        
-        const fileName = document.getElementById('name').value.trim() || 'cracha-cetep';
-        downloadLink.download = `${fileName}.jpeg`;
-        downloadLink.href = dataURL;
-        
-        console.log(`✅ Link de download configurado: ${fileName}.jpeg`);
-        console.log(`📊 Tamanho do arquivo: ${(dataURL.length / 1024 / 1024).toFixed(2)} MB`);
-    }
-
-    // Solução de emergência - usar canvas principal diretamente
-    createEmergencyDownload() {
-        console.log('🚨 Usando solução de emergência...');
-        
-        // Usar o canvas principal como está
-        const mainCanvasData = this.canvas.toDataURL('image/png', 1.0);
-        
-        // Criar nova imagem para redimensionar
-        const img = new Image();
-        img.onload = () => {
-            // Criar canvas de saída
-            const outputCanvas = document.createElement('canvas');
-            outputCanvas.width = this.PRINT_WIDTH_PX;
-            outputCanvas.height = this.PRINT_HEIGHT_PX;
-            const outputCtx = outputCanvas.getContext('2d');
-            
-            // Fundo branco
-            outputCtx.fillStyle = '#FFFFFF';
-            outputCtx.fillRect(0, 0, outputCanvas.width, outputCanvas.height);
-            
-            // Desenhar imagem redimensionada
-            outputCtx.drawImage(
-                img, 
-                0, 0, img.width, img.height,
-                0, 0, outputCanvas.width, outputCanvas.height
-            );
-            
-            // Criar link
-            const dataURL = outputCanvas.toDataURL('image/jpeg', 1.0);
-            const downloadLink = document.getElementById('downloadLink');
-            const fileName = document.getElementById('name').value.trim() || 'cracha-cetep';
-            downloadLink.download = `${fileName}.jpeg`;
-            downloadLink.href = dataURL;
-            
-            console.log('✅ Download de emergência criado!');
-        };
-        
-        img.src = mainCanvasData;
-    }
 
     // Função de debug para diagnosticar problemas
     debugImageStatus() {
