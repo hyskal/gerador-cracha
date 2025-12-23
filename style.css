@@ -434,6 +434,7 @@ body {
 .download-section {
     margin-top: 1.5rem;
     animation: fadeInUp 0.5s ease;
+    text-align: center; /* Centralizar o botão de download */
 }
 
 .download-link {
