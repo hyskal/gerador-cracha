@@ -1,641 +1,128 @@
-/**
- * CHANGELOG
- *
- * Instruções para Revisores:
- * Este bloco de comentários registra as modificações significativas do arquivo.
- * Cada nova modificação deve ser adicionada no topo da lista.
- * Use o formato "Versão [número]: [Descrição da modificação]".
- * Mantenha a lista limitada às 4 últimas alterações para clareza e concisão.
- *
- * Versão 2.4: Corrigido o artefato visual de borda preta na exibição do canvas.
- * - Adicionado um ajuste de layout para resolver um erro de arredondamento de pixels que causava uma borda preta na visualização em tela.
- * Versão 2.3: Adicionada borda fina preta na impressão do canvas.
- * - Isso garante que o crachá impresso (via PDF ou impressora) tenha uma borda visível.
- * Versão 2.2: Corrigida a exibição dos controles de zoom na impressão.
- * - Adicionado `.zoom-controls` à lista de elementos ocultos na versão de impressão.
- */
-
-/* Reset e configurações base */
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
-
+/* --- CONFIGURAÇÕES GERAIS --- */
 body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 50%, #06b6d4 100%);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.85rem; /* Fonte base levemente menor para caber tudo */
+    color: #344767;
+}
+
+.bg-light-blue {
+    background: linear-gradient(135deg, #1a365d 0%, #2563eb 100%);
+    background-attachment: fixed;
+    /* Importante para mobile */
     min-height: 100vh;
-    color: #1e3a8a;
-    line-height: 1.6;
 }
 
-/* Layout principal */
-.container {
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 1.5rem;
-    display: grid;
-    grid-template-columns: 300px 1fr 340px;
-    grid-template-areas:
-        "header header header"
-        "upload canvas controls"
-        ". text-controls .";
-    gap: 1.5rem;
-    align-items: start;
-}
+/* Utilitários de Texto */
+.x-small { font-size: 0.75rem; }
+h1, h2, h3, h4, h5, h6 { letter-spacing: -0.5px; }
 
-.header {
-    grid-area: header;
-    text-align: center;
-    margin-bottom: 1rem;
+/* Inputs e Sliders */
+.form-range-sm { height: 0.8rem; }
+.form-control-sm, .form-select-sm {
+    border-radius: 6px;
+    border-color: #d2d6da;
+    font-size: 0.85rem;
 }
-
-.header h1 {
-    color: white;
-    font-size: 2.4rem;
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-}
-
-.header p {
-    color: rgba(255, 255, 255, 0.9);
-    font-size: 1.1rem;
-    font-weight: 300;
-}
-
-/* Painéis principais */
-.upload-panel,
-.controls-panel,
-.canvas-container,
-.text-controls-panel {
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
-    border-radius: 16px;
-    padding: 1.5rem;
-    box-shadow: 
-        0 10px 30px rgba(0, 0, 0, 0.1),
-        0 1px 8px rgba(0, 0, 0, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.upload-panel {
-    grid-area: upload;
-}
-
-.controls-panel {
-    grid-area: controls;
-}
-
-.canvas-container {
-    grid-area: canvas;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
-.text-controls-panel {
-    grid-area: text-controls;
-    margin-top: -1rem;
-}
-
-/* Seções de upload */
-.upload-section {
-    margin-bottom: 1.5rem;
-}
-
-.upload-section:last-child {
-    margin-bottom: 0;
-}
-
-.upload-section h3 {
-    font-size: 1rem;
-    font-weight: 600;
-    color: #1e3a8a;
-    margin-bottom: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-/* Controles de grupo */
-.control-group {
-    margin-bottom: 1.5rem;
-}
-
-.control-group:last-child {
-    margin-bottom: 0;
-}
-
-.control-group label {
-    display: block;
-    font-weight: 600;
-    margin-bottom: 0.6rem;
-    color: #1e3a8a;
-    font-size: 0.9rem;
-}
-
-.sub-control {
-    margin-bottom: 1rem;
-}
-
-.sub-label {
-    font-size: 0.8rem !important;
-    margin-bottom: 0.3rem !important;
-    color: #6b7280 !important;
-    font-weight: 500 !important;
-}
-
-/* Inputs de arquivo */
-.file-input-wrapper {
-    position: relative;
-    display: block;
-    width: 100%;
-    margin-bottom: 1rem;
-}
-
-.file-input {
-    display: none;
-}
-
-.file-input-button {
-    display: block;
-    width: 100%;
-    padding: 1rem;
-    background: linear-gradient(135deg, #3b82f6, #2563eb);
-    color: white;
-    border: none;
-    border-radius: 12px;
-    font-size: 0.9rem;
-    font-weight: 600;
-    cursor: pointer;
-    text-align: center;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    overflow: hidden;
-}
-
-.file-input-button::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-    transition: left 0.6s;
-}
-
-.file-input-button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
-}
-
-.file-input-button:hover::before {
-    left: 100%;
-}
-
-.file-input-button:active {
-    transform: translateY(0);
-}
-
-/* Sliders melhorados */
-.slider-container {
-    margin-top: 0.6rem;
-    position: relative;
-}
-
-.slider {
-    width: 100%;
-    height: 8px;
-    border-radius: 4px;
-    background: linear-gradient(to right, #e5e7eb 0%, #d1d5db 100%);
-    outline: none;
-    -webkit-appearance: none;
-    transition: all 0.2s ease;
-}
-
-.slider:hover {
-    background: linear-gradient(to right, #d1d5db 0%, #9ca3af 100%);
-}
-
-.slider::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #3b82f6, #2563eb);
-    cursor: pointer;
-    border: 3px solid white;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-    transition: all 0.2s ease;
-}
-
-.slider::-webkit-slider-thumb:hover {
-    transform: scale(1.1);
-    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
-}
-
-.slider::-moz-range-thumb {
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #3b82f6, #2563eb);
-    cursor: pointer;
-    border: 3px solid white;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-    transition: all 0.2s ease;
-}
-
-/* Inputs de texto e select */
-.text-input,
-.select-input {
-    width: 100%;
-    padding: 0.8rem 1rem;
-    border: 2px solid #e5e7eb;
-    border-radius: 10px;
-    font-size: 0.9rem;
-    transition: all 0.3s ease;
-    background: #f9fafb;
-    font-weight: 500;
-}
-
-.text-input:focus,
-.select-input:focus {
-    outline: none;
+.form-control-sm:focus, .form-select-sm:focus {
     border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+/* Canvas Wrapper */
+.canvas-wrapper {
+    display: inline-block;
+    padding: 6px;
     background: white;
-    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
-    transform: translateY(-1px);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
 }
-
-.select-input {
-    cursor: pointer;
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
-    background-position: right 0.5rem center;
-    background-repeat: no-repeat;
-    background-size: 1.5em 1.5em;
-    padding-right: 2.5rem;
-}
-
-/* Controles de fonte */
-.font-size-control {
-    margin-top: 0.8rem;
-    padding-top: 0.8rem;
-    border-top: 1px solid rgba(0, 0, 0, 0.06);
-}
-
-/* Canvas */
 #canvas {
-    border-radius: 16px;
-    box-shadow: 
-        0 20px 40px rgba(0, 0, 0, 0.15),
-        0 8px 16px rgba(0, 0, 0, 0.1);
     max-width: 100%;
     height: auto;
-    border: 2px solid rgba(255, 255, 255, 0.5);
-    cursor: grab;
-    transition: all 0.3s ease;
+    border: 1px solid #e2e8f0;
 }
 
-#canvas:hover {
-    box-shadow: 
-        0 25px 50px rgba(0, 0, 0, 0.2),
-        0 10px 20px rgba(0, 0, 0, 0.15);
-}
-
-#canvas:active {
-    cursor: grabbing;
-}
-
-/* Controles de zoom */
-.zoom-controls {
-    display: flex;
-    gap: 0.8rem;
-    align-items: center;
-    margin-top: 1rem;
-    padding: 1rem;
-    background: rgba(59, 130, 246, 0.05);
-    border-radius: 12px;
-    border: 1px solid rgba(59, 130, 246, 0.1);
-}
-
-.zoom-controls label {
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: #1e3a8a;
-    min-width: max-content;
-}
-
-.zoom-controls input[type="range"] {
-    flex: 1;
-}
-
-.zoom-btn {
-    background: linear-gradient(135deg, #3b82f6, #2563eb);
-    color: white;
-    border: none;
-    border-radius: 10px;
-    padding: 0.6rem;
-    cursor: pointer;
-    font-size: 1.1rem;
-    font-weight: bold;
-    transition: all 0.2s ease;
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
-}
-
-.zoom-btn:hover {
-    transform: translateY(-2px) scale(1.05);
-    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
-}
-
-.zoom-btn:active {
-    transform: translateY(0) scale(0.95);
-}
-
-/* Valores dos sliders */
-.slider-value {
-    font-size: 0.85rem;
-    color: #6b7280;
-    margin-top: 0.4rem;
-    text-align: center;
-    font-weight: 600;
-    background: rgba(107, 114, 128, 0.1);
-    padding: 0.3rem 0.6rem;
-    border-radius: 6px;
-    display: inline-block;
-    min-width: 50px;
-}
-
-/* Seção de geração */
-.generate-section {
-    grid-column: 1 / -1;
-    text-align: center;
-    margin-top: 2rem;
-    display: flex;
-    justify-content: center;
-    gap: 1.5rem;
-    flex-wrap: wrap;
-}
-
-.generate-btn,
-.print-btn {
-    background: linear-gradient(135deg, #1e3a8a, #3b82f6);
-    color: white;
-    border: none;
-    padding: 1rem 2.5rem;
-    font-size: 1.1rem;
-    font-weight: 700;
-    border-radius: 50px;
-    cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    position: relative;
-    overflow: hidden;
-    min-width: 180px;
-}
-
-.print-btn {
-    background: linear-gradient(135deg, #059669, #10b981);
-}
-
-.generate-btn::before,
-.print-btn::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-    transition: left 0.6s;
-}
-
-.generate-btn:hover,
-.print-btn:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
-}
-
-.generate-btn:active,
-.print-btn:active {
-    transform: translateY(-1px);
-}
-
-/* Link de download */
-.download-section {
-    margin-top: 1.5rem;
-    animation: fadeInUp 0.5s ease;
-    text-align: center; /* Centralizar o botão de download */
-}
-
-.download-link {
-    display: inline-block;
-    background: linear-gradient(135deg, #10b981, #059669);
-    color: white;
-    padding: 1rem 2rem;
-    border-radius: 50px;
-    text-decoration: none;
-    font-weight: 700;
-    font-size: 1rem;
-    transition: all 0.3s ease;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);
-}
-
-.download-link:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 12px 30px rgba(16, 185, 129, 0.4);
-}
-
-/* Animações */
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
+/* --- MODO DESKTOP (APP VIEW) --- */
+/* Só aplica se a tela for maior que 992px (Laptops/Desktops) */
+@media (min-width: 992px) {
+    html, body {
+        height: 100%;
+        overflow: hidden; /* Remove rolagem da página principal */
     }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
 
-/* Texto de ajuda */
-.help-text {
-    font-size: 0.8rem;
-    color: #6b7280;
-    margin-top: 0.6rem;
-    font-style: italic;
-    line-height: 1.4;
-}
-
-/* Responsividade */
-@media (max-width: 1200px) {
-    .container {
-        grid-template-columns: 1fr;
-        grid-template-areas:
-            "header"
-            "upload"
-            "canvas"
-            "controls"
-            "text-controls";
-        gap: 1.5rem;
-        padding: 1rem;
-    }
-    
-    .header h1 {
-        font-size: 2rem;
-    }
-    
-    .upload-panel,
-    .controls-panel,
-    .canvas-container,
-    .text-controls-panel {
-        max-width: 600px;
-        margin: 0 auto;
-    }
-}
-
-@media (max-width: 768px) {
-    .container {
-        padding: 1rem;
-        gap: 1rem;
-    }
-    
-    .header h1 {
-        font-size: 1.8rem;
-    }
-    
-    .header p {
-        font-size: 1rem;
-    }
-    
-    .upload-panel,
-    .controls-panel,
-    .canvas-container,
-    .text-controls-panel {
-        padding: 1rem;
-    }
-    
-    .generate-section {
+    .app-container {
+        height: 100vh;
+        display: flex;
         flex-direction: column;
+        padding-bottom: 1rem;
+    }
+
+    /* O Header ocupa espaço fixo, o resto expande */
+    .app-content {
+        flex: 1;
+        min-height: 0; /* Crucial para o scroll interno funcionar */
+    }
+
+    /* Colunas ocupam 100% da altura disponível */
+    .h-100-desktop {
+        height: 100%;
+    }
+
+    /* Cards laterais com rolagem interna se o conteúdo for muito grande */
+    .scrollable-card {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .scrollable-body {
+        flex: 1;
+        overflow-y: auto; /* Scroll apenas aqui dentro se precisar */
+        scrollbar-width: thin; /* Firefox */
+        padding-right: 4px; /* Evita que o scroll cubra conteúdo */
+    }
+
+    /* Estilo do scrollbar (Chrome/Edge/Safari) */
+    .scrollable-body::-webkit-scrollbar { width: 6px; }
+    .scrollable-body::-webkit-scrollbar-track { background: transparent; }
+    .scrollable-body::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
+
+    /* Canvas Centralizado e Responsivo na Altura */
+    .canvas-center-col {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
         align-items: center;
-        gap: 1rem;
-    }
-    
-    .generate-btn,
-    .print-btn {
-        width: 100%;
-        max-width: 280px;
-        padding: 1rem 1.5rem;
-        font-size: 1rem;
-    }
-    
-    .zoom-controls {
-        flex-wrap: wrap;
-        gap: 0.5rem;
-    }
-    
-    .zoom-controls label {
-        width: 100%;
-        text-align: center;
-        margin-bottom: 0.5rem;
-    }
-}
-
-@media (max-width: 480px) {
-    .container {
-        padding: 0.5rem;
-    }
-    
-    .header h1 {
-        font-size: 1.6rem;
-    }
-    
-    .upload-panel,
-    .controls-panel,
-    .canvas-container,
-    .text-controls-panel {
-        padding: 0.8rem;
-    }
-    
-    .control-group {
-        margin-bottom: 1rem;
-    }
-    
-    .zoom-btn {
-        width: 35px;
-        height: 35px;
-        font-size: 1rem;
-    }
-}
-
-/* CSS para impressão */
-@media print {
-    body {
-        background: white;
-    }
-    
-    .container {
-        display: block;
-        padding: 0;
-        margin: 0;
-    }
-    
-    .upload-panel,
-    .controls-panel,
-    .generate-section,
-    .text-controls-panel,
-    .header,
-    .zoom-controls {
-        display: none !important;
-    }
-    
-    .canvas-container {
-        box-shadow: none;
-        border-radius: 0;
-        padding: 0;
-        margin: 0;
-        background: transparent;
+        height: 100%;
     }
     
     #canvas {
-        width: 54mm !important;
-        height: 85mm !important;
-        box-shadow: none;
-        border: 1px solid black; /* Adicionado para a borda na impressão do navegador */
-        border-radius: 0;
+        max-height: 65vh; /* Garante que o canvas nunca estoure a altura */
+        width: auto; /* Mantém proporção */
+        object-fit: contain;
     }
 }
 
-/* Estados de foco melhorados */
-.file-input-button:focus-visible,
-.generate-btn:focus-visible,
-.print-btn:focus-visible,
-.download-link:focus-visible {
-    outline: 3px solid rgba(59, 130, 246, 0.5);
-    outline-offset: 2px;
-}
-
-/* Estados desabilitados */
-.generate-btn:disabled,
-.print-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
-}
-
-.generate-btn:disabled:hover,
-.print-btn:disabled:hover {
-    transform: none;
-    box-shadow: none;
+/* --- IMPRESSÃO --- */
+@media print {
+    body, html, .app-container {
+        height: auto !important;
+        overflow: visible !important;
+        background: none !important;
+    }
+    header, .col-lg-3, .zoom-controls, .btn, #downloadSection, .card-header, .d-flex {
+        display: none !important;
+    }
+    .col-lg-6, .card-body, .canvas-wrapper {
+        width: 100% !important;
+        display: block !important;
+        padding: 0 !important;
+    }
+    #canvas {
+        width: 54mm !important;
+        height: 85mm !important;
+        border: 1px dotted #ccc;
+        max-height: none !important;
+    }
 }
